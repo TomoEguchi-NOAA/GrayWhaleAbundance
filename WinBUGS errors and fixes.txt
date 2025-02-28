@@ -1,0 +1,54 @@
+value of order of binomial n.sp[2,1,1] must be greater than zero -> Fixed by providing N_inits (2 x n + 2)
+value of bernoulli z[1,1] must be an integer -> moved z = matrix(1, nrow=90, ncol=length(periods)) to data from inits (2023-09-11 This is incorrect because z is not observable.)
+value of order of binomial n.sp[1,1,1] must be greater than zero (see https://stats.stackexchange.com/questions/22850/winbugs-error-with-zero-values-in-binomial-distribution-value-of-order-of-binom) 
+-> All to do with N_inits. 
+value of binomial n.sp[116,2,3] must be between zero and order of n.sp[116,2,3]
+-> N_inits values have to be greater than either values in n[j,1,t] or n[j,2,t]. I added the following lines to fix this problem. 
+
+N_inits1 <- n[, 1,] * 2 + 2
+N_inits2 <- n[, 2,] * 2 + 2 
+            
+N_inits <- N_inits1
+N_inits[N_inits1 < N_inits2] <- N_inits2[N_inits1 < N_inits2]
+
+N_inits <- rbind(N_inits,
+                 matrix(data = NA, nrow = 2, ncol = length(periods)))
+
+N_inits needs to be NAs for where there was no data. So, lines above, N_inits1 and N_inits2 need to be modified so that NAs have to be inserted where there is no data. For example...
+
+n <- BUGS.data$n
+for (k in 1:ncol(n)){
+  if (BUGS.data$periods[k] < nrow(n))
+    n[(BUGS.data$periods[k]+1):nrow(n),k] <- NA
+} 
+
+N_inits1 <- n * 2 + 2
+
+value of bernoulli z[1,1] must be an integer -> the dimensions of beta.sp, sd.b.sp, and z in jags.inits function need to be changed. I now use "x" to define the number of years to be analyzed. x is shared within the function so no need to change them individually. 2022-04-06
+
+The same problem came back when analyzing Laake's data. The fix above did not solve the problem. 2023-09-11
+This problem goes away when N, N.com, and N.sp are removed from the inits function. However, the other problem pops up: "value of order of binomial n.sp[1,1,1] must be greater than zero." This problem was solved by providing N_inits before... 
+
+# 2023-03-03 
+  # ERROR: NIL dereference (read). 
+  # According to the user manual, this error may
+  # happen "at compilation in some circumstances when an inappropriate
+  # transformation is made, for example an array into a scalar." 
+  # (https://www.mrc-bsu.cam.ac.uk/wp-content/uploads/manual14.pdf)
+  
+  # DIC problems: Surprisingly, sometimes when getting a trap (including one with the very
+  # informative title “NIL dereference (read)”), setting the argument DIC = FALSE in the bugs()
+  # function has helped. (https://www.mbr-pwrc.usgs.gov/software/kerybook/AppendixA_list_of_WinBUGS_tricks.pdf)
+  
+  # I only changed the effort (Watch.Length) for this analysis using 30 minutes as the 
+  # minimum observation duration. That changed the size of data arrays, which shouldn't be an issue. 
+  
+  # It turned out a new observer (JSD) was introduced when a shorter minimum was used to filter
+  # observation period. "JSD" was only found in 2020 (200109_080043). A strange thing happened for that day.
+  # During the 0800 shift, JSD/JWG changed to SJC/JDS on 0900, then the shift continued until 0930. The new
+  # cutoff time (30 min) picked up the first (1 hr) and the second (30 min) as separate observation periods.
+  
+# 2024-02-21
+  # ERROR: NIL dereference (read). 
+  # This was caused by having lowercase observer initials in the 2010 data. That was fixed in the extraction
+  # function get.shift. 

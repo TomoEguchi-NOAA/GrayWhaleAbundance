@@ -1,0 +1,88 @@
+---
+title: "Variance-covariance estimation"
+output: html_notebook
+---
+
+2023-08-08
+
+R notebook for extracting the variance-covariance matrix of abundance estimates.
+
+
+```{r setup, include=FALSE}
+rm(list = ls())
+
+# source("Granite_Canyon_Counts_fcns.R")
+library(tidyverse)
+# library(lubridate)
+library(flextable)
+# library(readr)
+# library(bayesplot)
+# 
+
+```
+
+
+Calculate var-cov matrix
+
+```{r Ver1-data, echo=FALSE, warning=FALSE, message= FALSE}
+seasons <- c("2006/2007", "2007/2008", "2009/2010", "2010/2011",
+             "2014/2015", "2015/2016", "2019/2020", "2021/2022",
+             "2022/2023")
+
+x <- length(seasons)
+
+Ver1.results <- readRDS(paste0("RData/WinBUGS_", x, "yr_v2_min85.rds"))
+
+# Extract posteriors for "Corrected.Est":
+post.matrix <- Ver1.results$BUGS_out$sims.matrix
+Corrected.Est.posterior <- post.matrix[, grep("Corrected.Est", dimnames(post.matrix)[[2]])]
+var.cov <- var(Corrected.Est.posterior)
+var.cov.log <- var(log(Corrected.Est.posterior))
+dimnames(var.cov.log) <- list(seasons, seasons)
+
+log.means.df <- data.frame(Season = seasons,
+                       mean = as.vector(Ver1.results$BUGS_out$summary[grep("Corrected.Est",
+                                                                           dimnames(Ver1.results$BUGS_out$summary)[[1]]), "mean"]) %>%
+                         log(),
+                       median = as.vector(Ver1.results$BUGS_out$summary[grep("Corrected.Est",
+                                                                           dimnames(Ver1.results$BUGS_out$summary)[[1]]), "50%"]) %>%
+                         log())
+
+means.df <- data.frame(Season = seasons,
+                       mean = as.vector(Ver1.results$BUGS_out$summary[grep("Corrected.Est",
+                                                                           dimnames(Ver1.results$BUGS_out$summary)[[1]]), "mean"]),
+                       median = as.vector(Ver1.results$BUGS_out$summary[grep("Corrected.Est",
+                                                                           dimnames(Ver1.results$BUGS_out$summary)[[1]]), "50%"]))
+
+```
+
+
+Check to make sure CV for the most recent year matches what I provided in the report. Then, send it to Andre P.
+
+
+```{r Table-nhats-v1, echo=FALSE, warning=FALSE}
+flextable(means.df) %>% 
+  set_caption(paste0("Mean, median, standard deviation (sd), and CV of marginal posterior distribution of corrected abundance of gray whales from the visual surveys off Granite Canyon, CA."))  %>%
+  colformat_double(j = c("mean", "median"), digits = 0) %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+```
+
+
+These look good. So, create a text file with var-cov
+
+```{r}
+years <- "2007_2023"
+
+out.file.cov <- paste0("var_cov_", years, ".dat")
+out.file.mean.log <- paste0("means_log_", years, ".dat")
+out.file.mean <- paste0("means_", years, ".dat")
+
+write.table(var.cov.log, file = out.file.cov, quote = FALSE)
+
+write.table(log.means.df, file = out.file.mean.log, quote = FALSE)
+
+write.table(means.df, file = out.file.mean, quote = FALSE)
+
+```
+
+

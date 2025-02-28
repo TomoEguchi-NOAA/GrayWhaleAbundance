@@ -1,0 +1,301 @@
+
+
+    model{
+      
+  
+  # count i
+  # station (Trailer) s
+  # year t
+  
+  
+  ### Linking Lambda from N Mixture to Common Model
+  
+    for(t in 1:n.year){
+      for(d in 1:90){ #this is sub-indexed because the total number of shifts is different among years, and the begin / end times are formatted to have NAs where there were no watches
+        #day[j,t] <- floor(begin[j,t]) #this is the day that each watch / count is associated with (I ended up inputing this as data instead of begin/end)
+        #log(lambda[d,t]) <- log(Watch.Length) + com[d,t] #this is sub-indexed by day. There are multiple watches per day,
+        #all of which are poisson distributed around a mean (lambda) whales per watch
+        #The com[day,year] common model is the total number of whales passing on a given day.
+        #By adding the log(Watch.Length), we're multiplying that by the fraction of a day represented by a watch
+        #So the end result is expected whales per watch (lambda) = expected whales per day (f - common model) * watch period
+        #In this case all watch periods are the same length, but this could be adjusted for different watch lengths (i.e. watch.length[j,t] <- end[j,t] - begin[j,t])
+        #Lastly, each watch is poisson distributed around the daily expected whales per watch
+  
+        # Fit the two separate models to replicate count data:
+        
+#        log(lambda.com[d,t]) <- log(Watch.Length) + com[d,t] #common model daily lambda fit
+#        log(lambda.sp[d,t]) <- log(Watch.Length) + sp[d,t] #specific model daily lambda fit
+#        log(lambda[d,t]) <- log(Watch.Length) + selected[d,t] # the 'best-fit' model, selected through the deily z switch
+        
+        com.tmp[d,t] <- com[d,t] # coded with an intermediate 'temp' vector, identical to John's code (but with dsum() instead of cut())
+        com.cut[d,t] <- cut(com.tmp[d,t]) #to prevent feedback (supposedly analogous to cut() function in BUGS)
+        
+        sp.tmp[d,t] <- sp[d,t]
+        sp.cut[d,t] <- cut(sp.tmp[d,t])
+      
+  
+        #selected[d,t] <- (z[d,t]*com[d,t]) + (1-z[d,t])*sp[d,t] #where com[] is the common seasonal curve model, sp[] is the specific spline model, and z[d,t] is the dbern(0.5) daily switch to select between model types. Also consider a simple annual switch, z[t] instead of selecting daily
+
+        z[d,t] ~ dbern(0.5) #uninformative prior for model switch
+
+      }#d
+    }#t
+    
+    
+    # Below mirrors John's code, indexing lambda by periods instead of by days, with the reference vector to link it to the appropriate model day
+    for(t in 1:n.year){
+      for(j in 1:(periods[t]+2)){
+      
+        selected[j,t] <- (z[day[j,t],t]*com.cut[day[j,t],t]) + (1-z[day[j,t],t])*sp.cut[day[j,t],t] #where com[] is the common seasonal curve model, sp[] is the specific spline model, and z[d,t] is the dbern(0.5) daily switch to select between model types. Also consider a simple annual switch, z[t] instead of selecting daily
+
+        
+        log(lambda.com[j,t]) <- log(Watch.Length[j,t]) + com[day[j,t],t] #common model daily lambda fit
+        log(lambda.sp[j,t]) <- log(Watch.Length[j,t]) + sp[day[j,t],t] #specific model daily lambda fit
+        
+        #log(lambda[j,t]) <- log(Watch.Length[j,t]) + selected[day[j,t],t] # the 'best-fit' model, selected through the deily z switch
+        log(lambda[j,t]) <- log(Watch.Length[j,t]) + selected[j,t] # the 'best-fit' model, selected through the deily z switch
+
+      }#j
+    }#t
+  
+  ### N Mixture process
+  
+  for(t in 1:n.year){
+    for(j in 1:periods[t]){ #NOT periods + 2 because those day 1 & 90 anchor points are fixed, so N shouldn't be estimated for those, only for the days with true watch periods
+      for(s in 1:n.station){
+      
+        n[j,s,t] ~ dbin(obs.prob[j,s,t],N[j,t]) # N mixture model - two observations of 'true' N (passing whales), with different observation probabilities
+        n.com[j,s,t] ~ dbin(obs.prob.com[j,s,t],N.com[j,t]) # N mixture model for common model fit
+        n.sp[j,s,t] ~ dbin(obs.prob.sp[j,s,t],N.sp[j,t]) # N mixture model for specific model fit
+
+      }#s    
+    }#j
+  }#t
+
+  for(t in 1:n.year){
+    for(j in 1:(periods[t]+2)){ #periods + 2 to include the added anchor points of 0 whales at days 1 and 90
+
+
+      # Replicate John's code:
+      N[j,t] ~ dpois(lambda[j,t]) # Then, the 'true' N's from a given day are distributed around a poisson mean whales per watch (lambda)
+      N.com[j,t] ~ dpois(lambda.com[j,t]) # Then, the 'true' N's from a given day are distributed around a poisson mean whales per watch (lambda)
+      N.sp[j,t] ~ dpois(lambda.sp[j,t]) # Then, the 'true' N's from a given day are distributed around a poisson mean whales per watch (lambda)
+
+    }#j
+  }#t
+  
+  
+  ### Observation probability
+  # It's necessary to have three separate observation probabilities for the three different models (common, spline, and selected)
+  # The reason: the common model will force a 'normal' seasonal curve, even if the number of whales in the middle of the season drops substantially
+  # If the spline model is then forced to share the same observation probability, it will overestimate the number of whales (because the seasonal curve would lead to a very low sighting probability during those days)
+  for(t in 1:n.year){
+    for(j in 1:periods[t]){
+      for(s in 1:n.station){
+
+        #Final obs prob    = observer 1/0 * (base obs prob + BF on/off *Fixed effect of BF * BF + VS on/off *Fixed effect of VS * VS    + Obs effect on/off * Random effect of observer)
+
+        #The below replicates Durban et al 2016 code:
+        # Selected model:
+        logit(prob[j,s,t]) <- logit(mean.prob) + (BF.Switch*BF.Fixed*bf[j,t]) + (VS.Switch*VS.Fixed*vs[j,t]) + (OBS.Switch*OBS.RF[obs[j,s,t]])
+        # the u data is whether there were observers on watch. 0 counts are often associated with years/shifts with no second observer. So if u=0, it will fix observation probability at 0
+        obs.prob[j,s,t] <- u[j,s,t]*prob[j,s,t]
+        
+        # Common (com) model:
+        logit(prob.com[j,s,t]) <- logit(mean.prob.com) + (BF.Switch.com*BF.Fixed.com*bf[j,t]) + (VS.Switch.com*VS.Fixed.com*vs[j,t]) + (OBS.Switch.com*OBS.RF.com[obs[j,s,t]])
+        obs.prob.com[j,s,t] <- u[j,s,t]*prob.com[j,s,t]
+        
+        # Spline (sp) model:
+        logit(prob.sp[j,s,t]) <- logit(mean.prob.sp) + (BF.Switch.sp*BF.Fixed.sp*bf[j,t]) + (VS.Switch.sp*VS.Fixed.sp*vs[j,t]) + (OBS.Switch.sp*OBS.RF.sp[obs[j,s,t]])
+        obs.prob.sp[j,s,t] <- u[j,s,t]*prob.sp[j,s,t]
+        
+        
+      }#s
+    }#j
+  }#t
+  
+  #Uninformative prior for mean.prob
+  mean.prob ~ dunif(0,1)
+    mean.prob.com ~ dunif(0,1)
+    mean.prob.sp ~ dunif(0,1)
+  
+  
+  ### Specification of terms within observation probability linear model
+  
+  ## Observer random effect
+  # SLECTED MODEL
+
+   for(o in 1:n.obs){
+    OBS.RF[o] ~ dnorm(0,tau.Obs)
+  }#o
+  
+  #Uninformative prior for tau.Obs
+  sigma.Obs ~ dunif(0,2)
+  tau.Obs <- pow(sigma.Obs,-2)
+  
+  # COMMON MODEL
+
+   for(o in 1:n.obs){
+    OBS.RF.com[o] ~ dnorm(0,tau.Obs.com)
+  }#o
+  
+  #Uninformative prior for tau.Obs
+  sigma.Obs.com ~ dunif(0,2)
+  tau.Obs.com <- pow(sigma.Obs.com,-2)
+  
+  # SPECIFIC MODEL
+
+   for(o in 1:n.obs){
+    OBS.RF.sp[o] ~ dnorm(0,tau.Obs.sp)
+  }#o
+  
+  #Uninformative prior for tau.Obs
+  sigma.Obs.sp ~ dunif(0,2)
+  tau.Obs.sp <- pow(sigma.Obs.sp,-2)
+  
+  OBS.Switch ~ dbern(0.5)
+    OBS.Switch.com ~ dbern(0.5)
+    OBS.Switch.sp ~ dbern(0.5)
+
+  
+  ## Beaufort
+  BF.Switch ~ dbern(0.5) #uninformative prior for the BF.Switch, which determines whether to include the effect of beaufort conditions (multiply by 0 or 1)
+    BF.Switch.com ~ dbern(0.5)
+    BF.Switch.sp ~ dbern(0.5)
+  
+  #Below is the single fixed effect multiplied by BF rating in the updated obs prob equation:
+  BF.Fixed ~ dnorm(0,0.01)
+    BF.Fixed.com ~ dnorm(0,0.01)
+    BF.Fixed.sp ~ dnorm(0,0.01)
+  
+  ## Visibility
+  VS.Switch ~ dbern(0.5) #uninformative prior for the VS.Switch
+    VS.Switch.com ~ dbern(0.5)
+    VS.Switch.sp ~ dbern(0.5)
+    
+  #Below is the single fixed effect multiplied by VS rating in the updated obs prob equation:
+  VS.Fixed ~ dnorm(0,0.01)
+    VS.Fixed.com ~ dnorm(0,0.01)
+    VS.Fixed.sp ~ dnorm(0,0.01)
+  
+  
+  
+  ### Seasonal Curve Models
+  
+  ## Model 1, normal curve Common Model with shared hyper-parameters
+  
+  # Hyper parameter prior specification
+  # These correspond to 'beta' parameters a, b, and c in the 'Common' model, Durban et al 2015
+  for (l in 1:3){
+    mean.beta[l] ~ dnorm(0,0.01) # means are specified as N(0,10)
+    beta.sigma[l] ~ dunif(0,10) # sd's are specified as U(0,10)
+    beta.tau[l] <- pow(beta.sigma[l],-2)
+    
+    # Annual 'beta' perameters distributed around hyper-parameters
+    for(t in 1:n.year){ #different betas for each year
+      beta[l,t] ~ dnorm(mean.beta[l],beta.tau[l])
+    }#t
+  }#l
+  
+  # Calculate the seasonal migration curve effect for the 'Common' model
+  # This is some wild math/code from John Durban's original code, but it works:
+  
+  # mean and sd of the time vector below
+      for(t in 1:n.year){
+        mean.time.com[t]<-mean(time.com[1:90,t]) # this will always be 45.5 unless the 1:90 time frame changes
+        sd.time.com[t]<-sd(time.com[1:90,t]) # and this will always be 26.1247 unless the time frame changes
+        mean.time.sp[t]<-mean(time.sp[1:90,t])
+        sd.time.sp[t]<-sd(time.sp[1:90,t])
+      }#t
+  
+  
+  for(d in 1:90){ #the full migration is considered to be 90 days starting on Dec 1
+    for(t in 1:n.year){
+      time.com[d,t] <- d #weird, just creating a vector of 1:90
+      time.sp[d,t] <- d
+      covariate.com[d,t]<-(time.com[d,t]-mean.time.com[t])/sd.time.com[t] # this makes a 'covariate', which is just a straight line
+      covariate.sp[d,t]<-(time.sp[d,t]-mean.time.sp[t])/sd.time.sp[t] # this makes a 'covariate', which is just a straight line
+
+
+      for(l in 1:3){
+        X[d,l,t] <- pow(covariate.com[d,t],l-1) # this makes three vectors related to day 'd' - one a flat line, one a straight increasing line, one a curve - which are then multiplied by a, b, and c in the Common model
+      }#l
+    }#t
+    for(t in 1:n.year){ # Put all of the above together to calculate the Common model estimate for each day
+      
+      com[d,t]<-inprod(beta[,t],X[d,,t]) # X is the same across all years, and has the different shapes for each part of the polynomial (a * 1, b*d, c*d^2). Then it's multiplied by the different a,b,c from each year. 
+      # inprod does the calculation for each day / each year across all of the betas 
+      
+      # NOTE: Model is inverse-logged (exp) as below for the full season summation
+      log(Common[d,t]) <- com[d,t] # Both models are on the log scale, and then added in log space to the effort correction
+      
+    }#t
+  }#d
+  
+  
+  ## Model 2, spline fit Specific Model
+  for(t in 1:n.year){  
+    for(d in 1:90){
+      for(k in 1:n.knots){
+        Z1[d,k,t]<-pow(uZ1[d,k,t], 1)
+        uZ1[d,k,t]<-(covariate.sp[d,t]-knot[k])*step(covariate.sp[d,t]-knot[k])
+      }#k
+    }#d
+  }#t
+  
+    for(d in 1:90){
+      for (l in 1:2){
+        for(t in 1:n.year){
+          X.sp[d,l,t] <- pow(covariate.sp[d,t],l-1) # this makes three vectors related to day 'd' - one a flat line, one a straight increasing line (similar to the common model above but a second degree polynomial instead of a third degree poly)
+        }#t
+      }#l
+    }#d
+    
+  for(t in 1:n.year){  
+    for(k in 1:n.knots){
+      b.sp[k,t]~dnorm(0,tau.b.sp[t]) #annual regression coefficients for each spline knot
+    }#k
+    
+    tau.b.sp[t]<-pow(sd.b.sp[t],-2)
+    sd.b.sp[t]~dunif(0,10) #uniform prior on regression coefficient SD, as per Durban et al
+  
+    for(l in 1:2){
+      beta.sp[l,t]~dnorm(0,0.01) #N(0,10) prior for S0 and S1 coefficients, as per Durban et al
+    }#l
+
+  
+    for(d in 1:90){
+      sp[d,t] <- inprod(beta.sp[,t],X.sp[d,,t]) + inprod(b.sp[,t],Z1[d,,t]) # multiplying splines across days to make the penalized spline model fit
+
+      # NOTE: Model is inverse-logged (exp) as below for the full season summation
+      log(Specific[d,t]) <- sp[d,t] # Both models are on the log scale, and then added in log space to the effort correction
+    }#d
+  }#t
+  
+  ### Summaries, Abundance Estimates, and Other Derived Quantities
+  
+  ## Seasonal Abundance Estimate:
+  for(t in 1:n.year){
+    for(d in 1:90){
+      # Daily estimate, based on either the common model (f) or the specific model (sp). For days with observations, this should have a somewhat confident z estimate. For days with no watches, I assume it will be balanced 50/50 between the two models
+      log(Daily.Est[d,t]) <- z[d,t]*com.cut[d,t] + (1-z[d,t])*sp.cut[d,t] #where sp[] is the specific model, and z[j,t] is the dbern(0.5) daily switch to select between model types. Also consider a simple annual switch, z[t] instead of selecting daily
+
+      #Daily.Est[d,t] <- z[d,t]*Common[d,t] + (1-z[d,t])*Specific[d,t]
+
+    }#d
+    raw.unrounded[t] <- sum(Daily.Est[1:90,t])
+    Raw.Est[t] <- round(raw.unrounded[t])
+    #Raw.Est[t] <- sum(Daily.Est[1:90,t])
+    Corrected.Est[t] <- Raw.Est[t]*corr.factor # multiply raw estimates by correction factor for nighttime passage rates (below)
+  }#t
+  
+  # Correction factor for nighttime passage rates:
+  corr.factor~dnorm(mean.corr,tau.corr)
+  mean.corr<-1.0875
+  sd.corr<-0.03625
+  tau.corr<-pow(sd.corr,-2)
+  
+  
+  
+    }#model
+    

@@ -1,0 +1,347 @@
+---
+title: "ABUNDANCE OF EASTERN NORTH PACIFIC GRAY WHALES 2021/2022"
+author: "Tomo Eguchi"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::word_document2: default
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+save.fig <- T
+
+source("Granite_Canyon_Counts_fcns.R")
+library(tidyverse)
+library(lubridate)
+library(flextable)
+
+set_flextable_defaults(font.size = 9,
+                       font.family = "Cambria")
+
+
+# some constants here:
+# # periods for the 6 survey years
+periods <-c(136, 135, 164, 178, 179, 151)
+
+# Observer list gets updated as new observers are added. 
+obs.list <- read.csv("Data/Observer list.csv", header = T) 
+colnames(obs.list) <- c("obs", "ID")
+
+seasons <- c("2006/2007", "2007/2008", "2009/2010", "2010/2011", 
+             "2014/2015", "2015/2016", "2019/2020", "2021/2022")
+
+x <- length(seasons)
+```
+
+## Introduction {-}
+
+The Southwest Fisheries Science Center (SWFSC) regularly conducts shore-based surveys of eastern North Pacific (ENP) gray whales (*Eschrichtius robustus*) to estimate abundance. These estimates are obtained from visual survey data collected off central California between December and February during the gray whale southward migration, and provide regular updates to a time series of estimates that began in 1967 (see Laake et al. 2012, Durban et al. 2015; 2017). Surveys have recorded a generally increasing trend in ENP gray whale abundance, with the most recent estimate from 2016 of 26,960 whales, indicating that the population has roughly doubled since 1967 when it was estimated at 13,426 whales (Fig. 1). This report presents a new estimate of abundance for ENP gray whales migrating southward off the central California coast between December 2021 and February 2022.
+
+## Methods {-}
+
+Data for this updated abundance estimate were collected during the 2021-2022 southward ENP gray whale migration between X and Y. Counts were made from a shore-based watch station at Granite Canyon, California, by teams of observer pairs rotating from a larger pool. These surveys are designed to target the main migration period from late December to mid-February and do not typically cover the early onset or late offset of the migration when few whales are observed. Sampling and analytical methods are described in Durban et al. (2015; 2017; Fig. 1).  
+
+The estimate of abundance reported here was generated using the N-mixture modeling approach used previously by SWFSC for surveys conducted between 2006 and 2020 (Durban et al. 2015; 2017). In this approach, the sighting probability of shore-based observers is estimated by using data from replicate surveys (i.e., data collected simultaneously by two independent observer teams) that were completed in 2009/10 and 2010/11. These sighting probability estimates allow the total number of whales passing through the survey area during a watch period to be estimated from the observed number of whales, even in years when replicate surveys are not conducted.
+
+In the analysis of data, the start date of the southward migration for the Granite Canyon study site is set as 1 December and the end date as 28 February by fixing the number of whales passing the watch station on those two dates to zero. The model fits two possible migration curves based on the observed number of whales, including: (a) a normal distribution where the peak in the number of whales passing daily occurs at the model-estimated midpoint of the migration, and (b) a spline fit that allows the overall migration curve to flexibly match the observed sightings without expectations about the shape of the curve. The model then internally selects which of these two candidate migration curves best matches the daily number of observed whales. The final abundance estimate is the sum of the total number of whales passing the survey area each day (i.e., both observed whales and the estimated number of unobserved whales), with a correction factor applied to account for a small number of whales that may pass too far offshore to be observed by shore-based observers. The modeling approach is described in detail in Durban et al. (2015; 2017).
+
+## Results {-}
+
+### Abundance estimates {-}
+
+From D1 through D2, N trained observers completed Z hours of survey effort over ZZ survey days. A total of X gray whales were counted, with the highest daily count of Y whales on DATE. 
+
+
+```{r Ver2-data, echo=FALSE, warning=FALSE, message= FALSE}
+
+# CHANGE THIS LINE BACK
+Ver2.results <- readRDS(paste0("RData/WinBUGS_", x, "yr_v2.rds"))
+#Ver2.results <- readRDS(paste0("RData/WinBUGS_", x, "yr_100k_v2.rds"))
+
+# observed counts:
+n.v2 <- Ver2.results$jags.data$n
+whale.counts.v2.df <- data.frame(Season = seasons,
+                                 Periods = Ver2.results$jags.data$periods,
+                                 #Duration = colSums(Ver2.results$jags.data$Watch.Length, 
+                                #                    na.rm = T) - 2,
+                                 Counts = apply(n.v2[,1,], 
+                                                MARGIN = 2, FUN = sum))
+
+whale.counts.df <- data.frame(Season = seasons,
+                              Periods.v2 = Ver2.results$jags.data$periods,
+                              Counts.v2 = apply(n.v2[,1,], 
+                                                MARGIN = 2, FUN = sum))
+
+# Extract estimated counts
+Daily.Est.v2 <- Ver2.results$BUGS_out$sims.list$Daily.Est
+sp.v2 <- Ver2.results$BUGS_out$sims.list$sp
+com.v2 <- Ver2.results$BUGS_out$sims.list$com
+Corrected.Est.v2 <- Ver2.results$BUGS_out$sims.list$Corrected.Est
+
+stats.list.v2 <- vector(mode = "list",
+                     length = dim(Daily.Est.v2)[3])
+
+for (k in 1:dim(Daily.Est.v2)[3]){
+  # Daily.Est.list[[k]] <- Daily.Est[,,k]
+  # Daily.Est.UCIs[[k]] <- apply(Daily.Est[,,k],2,quantile,0.975)
+  # Daily.Est.LCIs[[k]] <- apply(Daily.Est[,,k],2,quantile,0.275)
+  # 
+  # sp.list[[k]] <- sp[,,k]
+  # com.list[[k]] <- com[,,k]
+  
+  stats.list.v2[[k]] <- data.frame(Daily.Est.median = apply(Daily.Est.v2[,,k], 2,
+                                                            median),
+                                   Daily.Est.LCL = apply(Daily.Est.v2[,,k], 2,
+                                                         quantile,0.275),
+                                   Daily.Est.UCL = apply(Daily.Est.v2[,,k], 2,
+                                                         quantile,0.975),
+                                   sp.median = apply(exp(sp.v2[,,k]), 2,
+                                                     median),
+                                   sp.LCL = apply(exp(sp.v2[,,k]), 2,
+                                                  quantile,0.025),
+                                   sp.UCL = apply(exp(sp.v2[,,k]), 2,
+                                                  quantile,0.975),
+                                   com.median = apply(exp(com.v2[,,k]), 2,
+                                                      median),
+                                   com.LCL = apply(exp(com.v2[,,k]), 2,
+                                                   quantile,0.025),
+                                   com.UCL = apply(exp(com.v2[,,k]), 2,
+                                                   quantile,0.975),
+                                   #total.median = apply(exp(sp[,,k]), 1, sum),
+                                   days = 1:dim(Daily.Est.v2)[2],
+                                   Season = seasons[k])
+}
+
+# find daily effort:
+daily.effort <- daily.counts <- daily.N <- matrix(nrow = 88, ncol = x)
+Watch.Length <- Ver2.results$jags.data$Watch.Length
+day.mat <- Ver2.results$jags.data$day
+ns <- rbind(n.v2[,1,], matrix(NA, nrow = 2, ncol = x))
+
+for (y in 1:x){
+  for (j in 2:89){
+    daily.effort[j-1, y] <- sum(Watch.Length[day.mat[,y] == j, y], na.rm = T)
+    daily.counts[j-1, y] <- sum(ns[day.mat[,y] == j, y], na.rm = T)
+    daily.N[j-1, y] <- daily.counts[j-1,y]/daily.effort[j-1,y]
+  }
+}
+  
+daily.N.df <- data.frame(daily.N) 
+colnames(daily.N.df) <- seasons
+daily.N.df %>% pivot_longer(everything(),
+                            names_to = "Season", 
+                            values_to = "N") %>%  
+  arrange(Season) -> daily.N.df.long
+
+daily.N.df.long$days <- rep(2:89, times = x)
+
+
+all.stats.v2 <- do.call("rbind", stats.list.v2) %>% group_by(Season)
+
+abundance.df.v2 <- data.frame(Season = seasons, 
+                              Median = apply(Corrected.Est.v2, 
+                                             FUN = median, 
+                                             MARGIN = 2),
+                              LCL = apply(Corrected.Est.v2, 
+                                          MARGIN = 2, 
+                                          FUN = quantile, 0.025) %>% round(),
+                              UCL = apply(Corrected.Est.v2, 
+                                          MARGIN = 2, 
+                                          FUN = quantile, 0.975) %>% round)
+
+p.Nhat.v2 <- ggplot(data = abundance.df.v2) + 
+  geom_point(aes(x = Season, y = Median)) + 
+  geom_errorbar(aes(x = Season, ymin = LCL, ymax = UCL)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  xlab("") +
+  ylab("Median abundance + 95% CI")
+
+if (save.fig)
+  ggsave(filename = "figures/nhats_v2.png", plot = p.Nhat.v2,
+         device = "png", dpi = 600)
+
+p.v2.both <- ggplot(data = all.stats.v2) + 
+  geom_line(aes(x = days, y = sp.median),
+            color = "darkblue") + 
+  geom_line(aes(x = days, y = com.median),
+            color = "red") +
+  geom_ribbon(aes(x = days, 
+                  ymin = sp.LCL, 
+                  ymax = sp.UCL),
+              fill = "lightblue", 
+              alpha = 0.5) +
+  geom_ribbon(aes(x = days, 
+                  ymin = com.LCL, 
+                  ymax = com.UCL),
+              fill = "indianred1", 
+              alpha = 0.5) +
+  geom_point(data = daily.N.df.long,
+             aes(x = days, y = N)) +
+  facet_wrap(vars(Season)) +
+  xlab("Days since December 1") + 
+  ylab("Whales per day")
+
+if (save.fig)
+  ggsave(filename = "figures/SPvsNormal_v2.png", 
+         plot = p.v2.both,
+         device = "png", dpi = 600)
+
+p.v2.daily <- 
+  ggplot(data = all.stats.v2) +
+  geom_line(aes(x = days, y = Daily.Est.median)) +
+  geom_ribbon(aes(x = days, 
+                  ymin = Daily.Est.LCL, 
+                  ymax = Daily.Est.UCL),
+              fill = "orange", 
+              alpha = 0.5) + 
+  geom_point(data = daily.N.df.long,
+             aes(x = days, y = N)) +
+  facet_wrap(vars(Season))+
+  xlab("Days since December 1") + 
+  ylab("Whales per day")
+
+if (save.fig)
+  ggsave(filename = "figures/daily_estimates_v2.png", plot = p.v2.daily,
+         device = "png", dpi = 600)
+
+
+p.v2.sp.daily <- 
+  ggplot(data = all.stats.v2) +
+  geom_line(aes(x = days, y = sp.median)) +
+  geom_ribbon(aes(x = days, 
+                  ymin = sp.LCL, 
+                  ymax = sp.UCL),
+              fill = "orange", 
+              alpha = 0.5) + 
+  geom_point(data = daily.N.df.long,
+             aes(x = days, y = N)) +
+  facet_wrap(vars(Season))+
+  xlab("Days since December 1") + 
+  ylab("Whales per day")
+
+if (save.fig)
+  ggsave(filename = "figures/sp_estimates_v2.png", 
+         plot = p.v2.sp.daily,
+         device = "png", dpi = 600)
+
+
+```
+
+
+Using Ver2.0 extraction code, the abundance of gray whales during the 2021/2022 season was `r format(abundance.df.v2[nrow(abundance.df.v2), "Median"], scientific=F, digits = 6)` (95% CI: `r format(abundance.df.v2[nrow(abundance.df.v2), "LCL"], scientific=F, digits = 6)` - `r format(abundance.df.v2[nrow(abundance.df.v2), "UCL"], scientific=F, digits = 6)`). This estimate includes the multiplicative correction factor for the nighttime passage (mean = 1.0875, SD = 0.03625). This estimate was `r signif((abundance.df.v2[nrow(abundance.df.v2), "Median"] - abundance.df.v2[(nrow(abundance.df.v2)-1), "Median"])/abundance.df.v2[(nrow(abundance.df.v2)-1), "Median"], 3) * 100`% decline from the previous survey season (2019/2020, Figure \@ref(fig:Figure-nhats-v2), Table \@ref(tab:Table-nhats-v2)). 
+
+
+```{r Table-nhats-v2, echo=FALSE, warning=FALSE}
+flextable(abundance.df.v2) %>% 
+  set_caption(paste0("Estimated abundance (Median) and 95% lower (LCL) and upper (UCL) credible intervals of gray whales from the visual surveys off Granite Canyon, CA, between the 2006/2007 and 2021/2022 seasons."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+```
+
+
+```{r Figure-nhats-v2, echo=FALSE, message=FALSE, fig.cap="Estimated abundance and 95% credible intervals of gray whales from the visual surveys off Granite Canyon, CA, between the 2006/2007 and 2021/2022 seasons and Ver2.0 extraction code."}
+
+knitr::include_graphics("figures/nhats_v2.png")
+
+```
+
+
+## Migration phenology {-}
+
+In this section, I look at how timing of migration may have changed over the years. I only use the output of Ver2.0 for this analysis. The median date is defined as "the peak of the southbound migration is defined here as the date when 50% of the whale sightings had been recorded at a research site or (if data were not available for calculating the median) the date corresponding with the apex of a unimodal sighting curve (e.g. Fig. 2)." (Rough et al. 2001). Using the first definition, these dates correspond to sightings, rather than abundance estimates, whereas the latter definition is applicable for estimated numbers, if the model has a unimodal distribution. In our case, the model selected a better estimate between normal and spline fits for each day. Consequently, the results are not unimodal for some years (Figure \@ref(fig:Figure-daily-fit)). I use the date when 50% of the whale sightings had been recorded as the median date.   
+
+```{r Figure-daily-fit, echo=FALSE, message=FALSE, fig.cap="Daily estimated numbers of gray whales migrating through the sampling area off Granite Canyon. Black lines are medians and orange bands indicate 95% credible intervals."}
+
+knitr::include_graphics("figures/daily_estimates_v2.png")
+
+```
+
+
+```{r timing1, echo=FALSE, message=FALSE, warning=FALSE}
+
+total.n <- colSums(daily.counts)
+median.n <- floor(total.n/2)
+cumsum.n <- apply(daily.counts, MARGIN = 2, FUN = cumsum)
+median.idx <- vector(mode = "numeric", length = x )
+k <- 1
+idx.vec <- seq(1, nrow(daily.counts))
+for (k in 1:x){
+  tmp <- cumsum.n[,k]
+  dif.k <- abs(tmp - median.n[k])
+  median.idx[k] <- idx.vec[dif.k == min(dif.k)]
+}
+
+median.idx.df <- data.frame(Season = seasons,
+                            median.idx = median.idx)
+daily.counts.df <- data.frame(daily.counts)
+
+daily.counts.cumsum.df <- apply(daily.counts, 
+                                MARGIN = 2, cumsum) %>% 
+  data.frame()
+colnames(daily.counts.df) <- seasons
+colnames(daily.counts.cumsum.df) <- seasons
+#obsd.n.df$days <- idx.vec
+daily.counts.df.long <- pivot_longer(daily.counts.df, 
+                                     everything(),
+                                     names_to = "Season", 
+                                     values_to = "Counts") %>%  
+  arrange(Season)
+
+daily.counts.df.long$days <- rep(2:89, times = x)
+
+daily.counts.cumsum.df.long <- pivot_longer(daily.counts.cumsum.df, 
+                                            everything(),
+                                            names_to = "Season", 
+                                            values_to = "Counts") %>%  
+  arrange(Season)
+
+daily.counts.cumsum.df.long$days <- rep(2:89, times = x)
+
+p.daily.counts <- ggplot(daily.counts.df.long) +
+  geom_path(aes(x = days, y = Counts)) +
+  facet_wrap(vars(Season)) + 
+  geom_vline(data = median.idx.df,
+             aes(xintercept = median.idx),
+             color = "red", size = 1)
+
+if (save.fig)
+  ggsave(plot = p.daily.counts,
+         filename = "figures/daily_counts.png",
+         device = "png", dpi = 600)
+
+p.daily.counts.cumu <- ggplot(daily.counts.cumsum.df.long) +
+  geom_path(aes(x = days, y = Counts)) +
+  facet_wrap(vars(Season)) + 
+  geom_vline(data = median.idx.df,
+             aes(xintercept = median.idx),
+             color = "red", size = 1) +
+  ylab("Cumulative counts")
+
+if (save.fig)
+  ggsave(plot = p.daily.counts.cumu,
+         filename = "figures/daily_counts_cumsum.png",
+         device = "png", dpi = 600)
+
+p.daily.N <- ggplot(daily.N.df.long) +
+  geom_path(aes(x = days, y = N)) +
+  facet_wrap(vars(Season)) + 
+  geom_vline(data = median.idx.df,
+             aes(xintercept = median.idx),
+             color = "red", size = 1)
+
+if (save.fig)
+  ggsave(plot = p.daily.N,
+         filename = "figures/daily_N.png",
+         device = "png", dpi = 600)
+
+```
+
+Median date changed widely among years. It ranged from `r min(median.idx)` in `r median.idx.df[median.idx == min(median.idx), "Season"]` to `r max(median.idx)` in `r median.idx.df[median.idx == max(median.idx), "Season" ]` (Figure \@ref(fig:Figure-phenology)).
+
+```{r Figure-phenology, echo=FALSE, message=FALSE, fig.cap="Daily observed numbers of gray whales migrating through the sampling area off Granite Canyon. Red vertical lines indicate the median date (the date when 50% of the whale sightings had been recorded)."}
+
+knitr::include_graphics("figures/daily_counts.png")
+
+
+```
+

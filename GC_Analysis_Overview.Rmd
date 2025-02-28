@@ -1,0 +1,63 @@
+---
+title: "Granite Canyon data analysis steps"
+author: "Tomo Eguchi"
+date: "2025-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This document describes how data from the Granite Canyon survey are used to create abundance estimates for gray whales. Raw data should be edited and saved (Aimée Lang is in charge of this step as of Feburary 2025). Raw data should be edited and edited files should be stored in one directory. Currently, I have a subdirectory within this project named "Data". It is case sensitive. Data for each year are separated into a subdirectory, e.g., "Data/2024". Each file in this subdirectory should contain data for one day. These files will be used in the following steps to create the input object for WinBUGS. 
+
+1. Extract data from edited data files (Extract_Data_All_v2.Rmd)
+2. Run WinBUGS (WinBUGS Ver2.Rmd)
+3. Create a report (GC Gray Whale Abundance Phenology Estimates YYYY.Rmd)
+
+
+### Data extraction
+
+Data are extracted and converted into an object that can be used in WinBUGS using Extract_Data_All_v2.Rmd. The document describes the steps. The data extraction method was updated from methods of John Durban (v.0) and Josh Stewart (v.1). The discrepancies in raw and extracted data are described in detail (GC Data Extraction Update.Rmd). In the first chunk of Extract_Data_All_v2.Rmd, output directory (out.dir), the year for which data are extracted (YEAR, the directory name that contains the data needs to be the year), and the duration of minimum shift (grace_min) need to be adjusted. Output objects are stored in the "RData" subdirectory under the project. If it does not exist, an error may return. 
+
+All files in "Data/'YEAR'/ are used to create the input object, where 'YEAR' is a four-digit year. Beware that if there are duplicated files, they are used as independent files.
+
+If debugging of the script is necessary, you may turn off the output saving option (save.output) to 'FALSE'. 
+
+When running this script the following warning message will return from the "get.data" function (this is found in Granite_Canyon_Counts_fcns.R): Warning: "NAs introduced by coercion". This is expected. These are results of as.numeric() for the line numbers, where some lines may be non-numeric text, e.g., "Edited" and other text. If there were days without any effort, do not create an edited data file. These "empty" files will return errors. 
+
+You may want to run this script a few times with differing "grace_min" values, e.g., 80, 60, and 5. The output files will be found in the output directory name defined in the script. The file name convention is out_YEAR_minMM_Tomo_v2.rds, where YEAR is the specified year and MM is the minimum survey duration per shift. 
+
+Observer lists are updated annually. In the data2WinBUGS_input function, the observer list from the previous survey is used to update the current year's observer list. 
+
+Extracted data from previous years should be copied into the same directory from the previous year's analysis. Alternatively, data can be re-extracted for all years. 
+
+### WinBUGS
+
+Once the data were extracted and .rds files created, you may run WinBUGS on these data files using WinBUGS Ver2.Rmd. In the script (WinBUGS Ver2.Rmd), make sure that the pointer to WinBUGS is correct ('WinBUGS.dir'). Make necessary changes to the data2WinBUGS_input function:
+
+WinBUGS.input <- data2WinBUGS_input(data.dir = "RData/V2.1_Feb2025",
+                                    years = c(2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024, 2025),
+                                    min.dur = 30) 
+                                    
+The function (data2WinBUGS_input) is found in 'Granite_Canyon_Counts_fcns.R'. The three inputs for this function are the directory name in which outputs from Extract_Data_All_v2.Rmd are found, years over which the analysis is conducted (only goes back to 2010) and the minimum shift duration, which coincides with the 90 - "grace_min" object mentioned in the previous section. For example, if the "grace_min" was 60, the min.dur = 30. Because there were no raw data files for the 2006/2007 and 2007/2008 seasons, I use the WinBUGS input data from Durban's work for those two seasons. 
+
+It may be good to start with short chains to make sure it runs. For example, 
+
+MCMCparams <- list(n.iter = 200,
+                   n.thin = 2,
+                   n.burnin = 50,
+                   n.chains = 5)
+
+Furthermore, I suggest setting the "debug" option in the bugs function to TRUE, so that WinBUGS will not close when an error occurs. With the above MCMC parameters, WinBUGS should complete calculations in 10 to 15 minutes (or less, depending on the processors). When WinBUGS ends computations without errors, you will see some multi-color plots within the WinBUGS window. The WinBUGS window needs to be manually closed in order to continue the script (this is the result of setting 'debug = TRUE'). If this runs fine without errors, change the debug setting to FALSE and change the MCMC settings so that WinBUGS will run longer and closes automatically. With the following setting, WinBUGS will run over 24 hrs. 
+
+MCMCparams <- list(n.iter = 85000, 
+                   n.thin = 50, 
+                   n.burnin = 50000,
+                   n.chains = 5)
+
+
+### Report
+

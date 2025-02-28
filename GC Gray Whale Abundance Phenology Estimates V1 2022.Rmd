@@ -1,0 +1,663 @@
+---
+title: "ABUNDANCE OF EASTERN NORTH PACIFIC GRAY WHALES 2021/2022"
+author: "Tomo Eguchi, Aimee Lang, David Weller"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::word_document2: default
+  header-includes:
+  - \usepackage{ragged2e}
+  - \renewcommand{\footnotesize}{\10 \justify}
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+save.fig <- F
+
+source("Granite_Canyon_Counts_fcns.R")
+library(tidyverse)
+library(lubridate)
+library(flextable)
+library(readr)
+library(segmented)
+
+format.big.number <- function(x) {
+  format(x, scientific=F, digits = 6, big.mark = ",")
+}
+
+set_flextable_defaults(font.size = 9,
+                       font.family = "Cambria")
+
+# Estimates from Laake et al. are here:
+col.defs <- cols(Year = col_character(),
+                 Nhat = col_double(),
+                 CV = col_double())
+
+Laake.estimates <- read_csv(file = "Data/Laake et al 2012 Table 9 Nhats.csv",
+                            col_types = col.defs) %>% 
+  mutate(SE = CV * Nhat,
+         LCL = Nhat - 1.96 * SE,
+         UCL = Nhat + 1.96 * SE,
+         Season = lapply(strsplit(Year, "_"), 
+                         FUN = function(x) paste0(x[1], "/", x[2])) %>% 
+           unlist) %>%
+  dplyr::select(Season, Nhat, SE, LCL, UCL)  %>%
+  mutate(Year = lapply(str_split(Season, "/"), 
+                       FUN = function(x) x[2]) %>% 
+           unlist() %>% 
+           as.numeric())
+
+# Bring in data from Rugh et al. 2001 (median dates)
+Rugh.data <- read_csv(file = "Data/Rugh et al 2001 Table 1 Median Date.txt",
+                      col_types = cols(Season = col_character(),
+                                       Median_Date = col_date(format = "%Y-%m-%d"))) %>%
+  mutate(Year = lapply(str_split(Season, "/"), 
+                       FUN = function(x) x[2]) %>% 
+           unlist() %>% 
+           as.numeric(),
+         median.idx = (Median_Date - as.Date(paste0((Year-1), "-12-01"))) %>%
+           as.numeric())
+
+# Durban estimates:
+Durban.estimates <- data.frame(Year = c(2007, 2008, 2010, 2011, 2015, 2016, 2020, 2022),
+                               Season = c("2006/2007", "2007/2008", "2009/2010",
+                                          "2010/2011", "2014/2015", "2015/2016",
+                                          "2019/2020", "2021/2022"),
+                               Nhat = c(20750, 17820, 21210, 20990, 28790, 26960, 20580, 16650),
+                               LCL = c(18860, 16150, 19420, 19230, 23620, 24420, 18700, 15170),
+                               UCL = c(23320, 19920, 23250, 22900, 39210, 29830, 22870, 18335),
+                               Method = "Durban")
+
+# UMEs
+UMEs <- data.frame(Season = c("1999/2000", "2000/2001", 
+                              "2019/2020", 
+                              "2020/2021", "2021/2022"),
+                   Year = c(1999, 2000, 2019, 2020, 2021))
+
+# This is for the 2022 analysis. Change it accordingly:
+end.year <- 2022
+all.years <- data.frame(Year = seq(from = min(Laake.estimates$Year), 
+                                  to = end.year))
+
+# Observer list gets updated as new observers are added. 
+obs.list <- read.csv("Data/Observer list.csv", header = T) 
+colnames(obs.list) <- c("obs", "ID")
+
+seasons <- c("2006/2007", "2007/2008", "2009/2010", "2010/2011", 
+             "2014/2015", "2015/2016", "2019/2020", "2021/2022")
+
+x <- length(seasons)
+
+all.files.2022 <- list.files("Data/2022/")
+data.first.2022 <- get.data("Data/", YEAR = 2022, 
+                            FILES = all.files.2022, ff = 1)
+data.last.2022 <- get.data("Data/", YEAR = 2022, 
+                           FILES = all.files.2022, ff = length(all.files.2022))
+
+data.all.list <- list()
+for (k in 1:length(all.files.2022)){
+  data.all.list[[k]] <- get.data("Data/", YEAR = 2022, 
+                                 FILES = all.files.2022, ff = k) 
+}
+
+data.all <- do.call(rbind, data.all.list)
+
+# observers                  
+unique.obs <- data.all %>% 
+  filter(V2 == "P") %>%
+  dplyr::select(V5) %>% 
+  unique()
+
+# survey hours
+data.all %>% 
+  filter(V2 == "B") %>%
+  dplyr::select(V2, begin) -> tmp.B
+
+data.all %>% 
+  filter(V2 == "E") %>%
+  dplyr::select(V2, begin) -> tmp.E
+
+survey.hrs <- 24 * (tmp.E$begin - tmp.B$begin)
+
+data.all %>% 
+  dplyr::select(V3) %>%
+  mutate(Date = as.Date(V3, format = "%m/%d/%Y")) -> survey.dates 
+
+# sightings
+data.all %>% filter(V2 == "S") %>%
+  mutate(Date = as.Date(V3, format = "%m/%d/%Y"),
+         GroupID = as.numeric(V5), 
+         n = as.numeric(V9)) %>%
+  dplyr::select(Date, GroupID, n) %>%
+  group_by(Date, GroupID) %>% #group by the whale group number
+  #summarize(N = max(as.numeric(V9), na.rm = T)) %>% 
+  summarize(N = last(n)) -> whale.groups
+
+# daily counts
+whale.groups %>%
+  group_by(Date) %>%
+  summarize(N = sum(N)) -> whale.groups.daily
+
+```
+
+## Introduction {-}
+
+The Southwest Fisheries Science Center (SWFSC) regularly conducts shore-based surveys of eastern North Pacific (ENP) gray whales (*Eschrichtius robustus*) to estimate abundance. These estimates are obtained from visual survey data collected off central California between December and February during the gray whale southward migration, and provide regular updates to a time series of abundance estimates that began in 1967 (Laake et al. 2012, Durban et al. 2015; 2017). Surveys have recorded a generally increasing trend in ENP gray whale abundance.  The two most recent estimates, however, indicated a decline from 2015/2016 of 26,960 whales (95% CI = 24,420-29,830) to 20,580 whales (95% CI = 18,700-22,970) in 2019/2020 (Stewart and Weller 2021). Even though the 2019/2020 estimate was greater than the estimate from 1967 (13,426 whales, CV = 0.094, Laake et al. 2012, Fig. 1), the observed decline was disconcerting. This report presents a new estimate of abundance for ENP gray whales migrating southward off the central California coast between December 2021 and February 2022.
+
+## Methods {-}
+
+Data for this updated abundance estimate were collected during the 2021-2022 southward ENP gray whale migration between `r min(as.Date(data.first.2022$V3, format = "%m/%d/%Y")) %>%format("%d %B %Y")` and `r max(as.Date(data.last.2022$V3, format = "%m/%d/%Y")) %>%format("%d %B %Y")`. Counts were made from a shore-based watch station at Granite Canyon, California, by teams of observer pairs rotating from a larger pool. These surveys are designed to target the main migration period from late December to mid-February and do not typically cover the early onset or late offset of the migration when few whales are observed. Sampling and analytical methods are described in Durban et al. (2015, 2017).  
+
+
+The estimate of abundance reported here was generated using the N-mixture modeling approach used previously by SWFSC for surveys conducted between 2006 and 2020 (Durban et al. 2015; 2017, Stewart and Weller 2021). In this approach, the sighting probability of shore-based observers is estimated by using data from replicate surveys (i.e., data collected simultaneously by two independent observer teams) that were completed in 2009/10 and 2010/11. These sighting probability estimates allowed the total number of whales passing through the survey area during a watch period to be estimated from the observed number of whales, even in years when replicate surveys were not conducted.
+
+
+In the data analysis, the start date of the southward migration for the Granite Canyon study site is fixed at 1 December and the end date at 28 February, where the number of whales passing the watch station on those two dates is assumed zero. The daily count data are assumed to be random deviates from binomial distributions with the estimated sighting probability from replicate surveys and the true number of whales in the sampling area, which is assumed to change as a function of the number of days since 1 December. The model fits two possible functions to the daily counts of whales and select a function that fits better for each count. These functions are (a) a normal distribution with the peak in the daily number of whales passing occurs at the midpoint of the migration and (b) a spline fit that allows the overall migration curve to flexibly match the observed daily counts without expectations about the shape of the curve. The model then internally selects which of these two candidate migration curves best matches the daily number of observed whales. The final abundance estimate is the sum of the total number of whales passing the survey area each day (i.e., both observed whales and the estimated number of unobserved whales), with a correction factor applied to account for a small number of whales that may pass too far offshore to be observed by shore-based observers and those that migrates through the study area at night. The modeling approach is described in detail in Durban et al. (2015; 2017).
+
+
+Because the N-mixture modeling approach uses all data since 2006/2007 to estimate parameters that are shared among yearly datasets, annual estimates change slightly as more data are added to the analysis. Consequently, the estimates for the seasons between 2006/2007 and 2020/2021 are different from what were provided in the previous reports. The differences, however, should be negligible. 
+
+
+To determine possible changes in migration timing, we examined the annual median migration date, which was defined in Rugh et al. (2001) as "the date when 50% of the whale sightings had been recorded at a research site or (if data were not available for calculating the median) the date corresponding with the apex of a unimodal sighting curve (e.g. Fig. 2)." Using the first definition, these dates are determined using sightings rather than estimated abundances. The latter definition, however, is applicable for estimated numbers, if the model has a unimodal distribution. In our approach, the model selected a better function between the normal and spline fits for each day. Consequently, the results are not unimodal for some years (Figure \@ref(fig:Figure-daily-fit)). We, therefore, use the date when 50% of the whale sightings had been recorded as the median date. 
+
+
+Linear models were fitted to the relationship between median dates and year. In order to estimate change points, if existed, we fitted segmented linear models using the *segmented* package (v. `r packageVersion("segmented")`, Muggeo 2017). All statistical analyses were conducted with in the R statistical environment (v. 4.1.2, R Core Team 2021).
+
+
+## Results and Discussion {-}
+
+
+```{r Ver1-data, echo=FALSE, warning=FALSE, message= FALSE}
+
+Ver1.results <- readRDS(paste0("RData/WinBUGS_", x, "yr_v1.rds"))
+
+# observed counts:
+n.v1 <- Ver1.results$data$n
+whale.counts.v1.df <- data.frame(Season = seasons,
+                                 Periods = Ver1.results$data$periods,
+                                 #Duration = colSums(Ver2.results$jags.data$Watch.Length, 
+                                #                    na.rm = T) - 2,
+                                 Counts = apply(n.v1[,1,], 
+                                                MARGIN = 2, FUN = sum))
+
+whale.counts.df <- data.frame(Season = seasons,
+                              Periods.v1 = Ver1.results$data$periods,
+                              Counts.V1 = apply(n.v1[,1,], 
+                                                MARGIN = 2, FUN = sum))
+
+# Extract estimated counts
+Daily.Est.v1 <- Ver1.results$BUGS_out$sims.list$Daily.Est
+sp.v1 <- Ver1.results$BUGS_out$sims.list$sp
+com.v1 <- Ver1.results$BUGS_out$sims.list$com
+Corrected.Est.v1 <- Ver1.results$BUGS_out$sims.list$Corrected.Est
+
+stats.list.v1 <- vector(mode = "list",
+                     length = dim(Daily.Est.v1)[3])
+
+for (k in 1:dim(Daily.Est.v1)[3]){
+  # Daily.Est.list[[k]] <- Daily.Est[,,k]
+  # Daily.Est.UCIs[[k]] <- apply(Daily.Est[,,k],2,quantile,0.975)
+  # Daily.Est.LCIs[[k]] <- apply(Daily.Est[,,k],2,quantile,0.275)
+  # 
+  # sp.list[[k]] <- sp[,,k]
+  # com.list[[k]] <- com[,,k]
+  
+  stats.list.v1[[k]] <- data.frame(Daily.Est.median = apply(Daily.Est.v1[,,k], 2,
+                                                            median),
+                                   Daily.Est.LCL = apply(Daily.Est.v1[,,k], 2,
+                                                         quantile,0.275),
+                                   Daily.Est.UCL = apply(Daily.Est.v1[,,k], 2,
+                                                         quantile,0.975),
+                                   sp.median = apply(exp(sp.v1[,,k]), 2,
+                                                     median),
+                                   sp.LCL = apply(exp(sp.v1[,,k]), 2,
+                                                  quantile,0.025),
+                                   sp.UCL = apply(exp(sp.v1[,,k]), 2,
+                                                  quantile,0.975),
+                                   com.median = apply(exp(com.v1[,,k]), 2,
+                                                      median),
+                                   com.LCL = apply(exp(com.v1[,,k]), 2,
+                                                   quantile,0.025),
+                                   com.UCL = apply(exp(com.v1[,,k]), 2,
+                                                   quantile,0.975),
+                                   #total.median = apply(exp(sp[,,k]), 1, sum),
+                                   days = 1:dim(Daily.Est.v1)[2],
+                                   Season = seasons[k])
+}
+
+# find daily effort: there are 90 days, where 1st and 90th are zeros.
+daily.effort <- daily.counts <- daily.N <- matrix(nrow = 88, ncol = x)
+Watch.Length <- Ver1.results$data$Watch.Length
+day.mat <- Ver1.results$data$day
+ns <- rbind(n.v1[,1,], matrix(NA, nrow = 2, ncol = x))
+
+for (y in 1:x){
+  for (j in 2:89){
+    daily.effort[j-1, y] <- sum(Watch.Length[day.mat[1:198,y] == j, y], na.rm = T)
+    daily.counts[j-1, y] <- sum(ns[day.mat[1:198,y] == j, y], na.rm = T)
+    daily.N[j-1, y] <- daily.counts[j-1,y]/daily.effort[j-1,y]
+  }
+}
+  
+daily.N.df <- data.frame(daily.N) 
+colnames(daily.N.df) <- seasons
+daily.N.df %>% pivot_longer(everything(),
+                            names_to = "Season", 
+                            values_to = "N") %>%  
+  arrange(Season) -> daily.N.df.long
+
+daily.N.df.long$days <- rep(2:89, times = x)
+
+
+all.stats.v1 <- do.call("rbind", stats.list.v1) %>% group_by(Season)
+
+abundance.df.v1 <- data.frame(Season = seasons, 
+                              Median = apply(Corrected.Est.v1, 
+                                             FUN = median, 
+                                             MARGIN = 2),
+                              LCL = apply(Corrected.Est.v1, 
+                                          MARGIN = 2, 
+                                          FUN = quantile, 0.025) %>% round(),
+                              UCL = apply(Corrected.Est.v1, 
+                                          MARGIN = 2, 
+                                          FUN = quantile, 0.975) %>% round(),
+                              Lower20 = apply(Corrected.Est.v1, 
+                                          MARGIN = 2, 
+                                          FUN = quantile, 0.20) %>% round(),
+                              Var = apply(Corrected.Est.v1, 
+                                          MARGIN = 2, 
+                                          FUN = var) %>% round(),
+                              Mean  = apply(Corrected.Est.v1, 
+                                          MARGIN = 2, 
+                                          FUN = mean) %>% round(),
+                              Method = "Durban") %>%
+  mutate(Year = lapply(str_split(Season, "/"), 
+                       FUN = function(x) x[2]) %>% 
+           unlist() %>% 
+           as.numeric(),
+         CV = sqrt(Var)/Mean)
+
+# Note that all.estiamtes is not used for making plots etc. This is because the numbers 
+# change with additional data AND how I fixed the input data for previous years. The
+# numbers are hard-coded in the Durban.estimates above. For 2021/2022 the numbers, i.e.,
+# median (Nhat), LCL, and UCL should match with v1 results. 
+
+# Laake.estimates %>% 
+#   dplyr::select(Year, Season, Nhat, LCL, UCL) %>%
+#   mutate(Method = "Laake") %>%
+#   rbind(abundance.df.v1 %>%
+#           transmute(Year = Year,
+#                     Season = Season, 
+#                     Nhat = Median,
+#                     LCL =LCL, 
+#                     UCL = UCL,
+#                     Method = Method)) %>%
+#   right_join(all.years, by = "Year") %>% 
+#   mutate(Season = paste0(Year-1, "/", Year)) -> all.estimates
+
+Laake.estimates %>%
+  dplyr::select(Year, Season, Nhat, LCL, UCL) %>%
+  mutate(Method = "Laake") %>%
+  rbind(Durban.estimates) -> all.estimates
+
+#write.csv(all.estimates, file = "Data/all_estimates_2022.csv")
+
+p.Nhat.v1 <- ggplot(data = all.estimates) + 
+  geom_point(aes(x = Season, y = Nhat, color = Method)) + 
+  geom_errorbar(aes(x = Season, ymin = LCL, ymax = UCL, color = Method)) +
+  geom_tile(data = UMEs,
+            aes(x = Season, y = 20000, width = 1, height = 20000),
+            fill = "gold", alpha = 0.3) +
+  scale_color_discrete(breaks = c("Durban", "Laake")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        legend.position = "top") +
+  xlab("") +
+  ylab("Abundance + 95% CI")
+
+# Modified version for the publication by Jonathan Scordino. Reviewers requested
+# to modify the original figure. Email from Jonathan on 2024-01-16.
+# 
+
+all.estimates %>%
+  right_join(data.frame(Year = seq(from = min(all.estimates$Year),
+                                   to = max(all.estimates$Year))) %>%
+               mutate(Season = paste0((Year-1), "/", Year))) %>%
+  arrange(by = Year) %>%
+  mutate(x.break = ifelse(Year%%2 == 0, T, F)) -> all.estimates.1
+
+p.Nhat.v1.mod <- ggplot(data = all.estimates.1) + 
+  geom_point(aes(x = Season, y = Nhat, color = Method)) + 
+  geom_errorbar(aes(x = Season, ymin = LCL, ymax = UCL, color = Method)) +
+  geom_tile(data = UMEs,
+            aes(x = Season, y = 20000, width = 1, height = 20000),
+            fill = "gold", alpha = 0.3) +
+  scale_color_discrete(breaks = c("Durban", "Laake")) +
+  scale_x_discrete(breaks = all.estimates.1$Season[all.estimates.1$x.break]) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 11),
+        axis.title = element_text(size = 16),
+        legend.position = c(0.1, 0.9)) +
+  xlab("Year") +
+  ylab("Abundance")
+
+
+if (save.fig)
+  ggsave(filename = "figures/nhats_v1.png", 
+         plot = p.Nhat.v1,
+         device = "png", dpi = 600)
+
+# Changed the output file to jpg as per Jonathan's request on 2024-03-04
+if (save.fig)
+  ggsave(filename = "figures/nhats_v1_2022_mod.jpg", 
+         plot = p.Nhat.v1.mod,
+         device = "jpeg", dpi = 600)
+
+p.v1.both <- ggplot(data = all.stats.v1) + 
+  geom_line(aes(x = days, y = sp.median),
+            color = "darkblue") + 
+  geom_line(aes(x = days, y = com.median),
+            color = "red") +
+  geom_ribbon(aes(x = days, 
+                  ymin = sp.LCL, 
+                  ymax = sp.UCL),
+              fill = "lightblue", 
+              alpha = 0.5) +
+  geom_ribbon(aes(x = days, 
+                  ymin = com.LCL, 
+                  ymax = com.UCL),
+              fill = "indianred1", 
+              alpha = 0.5) +
+  geom_point(data = daily.N.df.long,
+             aes(x = days, y = N)) +
+  facet_wrap(vars(Season)) +
+  xlab("Days since December 1") + 
+  ylab("Whales per day")
+
+if (save.fig)
+  ggsave(filename = "figures/SPvsNormal_v1.png", 
+         plot = p.v1.both,
+         device = "png", dpi = 600)
+
+p.v1.daily <- 
+  ggplot(data = all.stats.v1) +
+  geom_line(aes(x = days, y = Daily.Est.median)) +
+  geom_ribbon(aes(x = days, 
+                  ymin = Daily.Est.LCL, 
+                  ymax = Daily.Est.UCL),
+              fill = "orange", 
+              alpha = 0.5) + 
+  geom_point(data = daily.N.df.long,
+             aes(x = days, y = N)) +
+  facet_wrap(vars(Season))+
+  xlab("Days since December 1") + 
+  ylab("Whales per day")
+
+if (save.fig)
+  ggsave(filename = "figures/daily_estimates_v1.png", plot = p.v1.daily,
+         device = "png", dpi = 600)
+
+
+p.v1.sp.daily <- 
+  ggplot(data = all.stats.v1) +
+  geom_line(aes(x = days, y = sp.median)) +
+  geom_ribbon(aes(x = days, 
+                  ymin = sp.LCL, 
+                  ymax = sp.UCL),
+              fill = "orange", 
+              alpha = 0.5) + 
+  geom_point(data = daily.N.df.long,
+             aes(x = days, y = N)) +
+  facet_wrap(vars(Season))+
+  xlab("Days since December 1") + 
+  ylab("Whales per day")
+
+if (save.fig)
+  ggsave(filename = "figures/sp_estimates_v1.png", 
+         plot = p.v1.sp.daily,
+         device = "png", dpi = 600)
+
+
+```
+
+### Abundance estimates {-}
+
+NEED TO FIX DATES AND NUMBERS IN THIS SECTION AS R CODE. 
+
+From 28 December 2021 to 18 February 2022, 13 trained observers completed 255 hours of survey effort over 39 survey days. A total of 853 groups of 1689 gray whales were counted, with the highest daily count of 112 whales on 03 January 2022 (Fig. 1). Estimated total abundance of gray whales during the 2021/2022 southbound migration was 16,650 (95% Credible Interval: 15,170 - 18,335, CV = 0.0485, 20-percentile = 16,050). This estimate includes the multiplicative correction factor for nighttime passage (mean = 1.0875, SD = 0.03625). This estimate represents a 19.6% decline from the previous survey in 2019/2020 when abundance was estimated at 20,580 (Table 1, Fig. 2). Considering the 23.7% decline in abundance from 2016 to 2020 (Stewart and Weller 2021a), a striking decrease in the numbers of ENP gray whales occurred since 2016; 26,960 whales in 2015/2016, 20,580 in 2019/2020 and 16,650 in 2021/2022 (Fig. 2). 
+
+
+The most recent estimate of 16,650 in 2021/2022 is comparable to those from 2000/2001 and 2001/2002 (Fig. 2). Those earlier survey years coincided with an unusual mortality event (UME)  that occurred in 1999 and 2000 when higher than usual strandings and deaths of gray whales were observed along the west coast of Mexico, the United States, and Canada. In total, 651 dead gray whales were reported, with 283 observed in 1999 and 368 in 2000 (Gulland et al. 2005). While the cause of this UME was not determined, some stranded whales were in poor body condition leading to questions about whether the population of ENP gray whales had reached the limit of what the Arctic feeding ground habitat could support (Moore et al. 2001). However, the population subsequently increased and in 2016 the abundance was estimated at its all-time high of nearly 27,000 whales. 
+
+
+In 2019, NOAA’s National Marine Fisheries Service declared the most recent UME for ENP gray whales . As of June 3, 2022, 578 stranded whales were recorded with 216 in 2019, 172 in 2020, 114 in 2021 and 76 in 2022. While this UME appears to be at a slightly reduced level compared to the 1999-2000 UME, it overlaps with the observed 23.7% decline in abundance from 2016 to 2020 and then the 19.6% decline in abundance that occurred between 2020 and 2022. Given the increased number of strandings in 2019 that triggered the designation of a UME and the lower number of reported strandings since that time, it is likely that the majority of this decline occurred in 2019. This decline is comparable to that seen between 1987/1988, when the ENP gray whale population reached what was then its highest estimated abundance (26,916 whales) of the time series, and 1992/1993, when the estimated abundance had fallen approximately 40% over the course of four years. Based on the available records, this decline was not associated with a marked increase in the number of stranded whales, as was the case in 1999-2000 and 2019-present. However, by 1993/1994 abundance had increased to over 20,000, and remained stable at near that level until the 1999-2000 UME.
+
+
+The pattern of population growth and decline represented in the time series of abundance estimates for ENP gray whales suggests that large-scale fluctuations of this nature are not rare. The observed declines in abundance appear to represent short-term events that have not resulted in any detectable longer-term impacts on the population. That is, despite occasional declines in abundance since the time-series of data began in 1967, the overall trend had remained positive. That being said, the year over year decline in abundance between 2016 and 2022 represents a pattern that requires further regular monitoring to determine when the population trajectory levels off and, in turn, again becomes positive.
+While ENP gray whales have shown long-term resilience to population fluctuations for which a direct cause has yet to be determined, NOAA/NMFS continue to closely monitor the population with regular surveys to estimate abundance, calf production and body condition (e.g., Perryman and Lynn 2002, Durban et al. 2015; 2017, Perryman et al. 2020, Stewart and Weller 2021a, Stewart and Weller 2021b). The results of these research efforts will continue to provide the best scientific information available regarding the status of the population.
+
+
+### Migration phenology {-}
+
+```{r timing1, echo=FALSE, message=FALSE, warning=FALSE}
+total.n <- colSums(daily.counts)
+median.n <- floor(total.n/2)
+cumsum.n <- apply(daily.counts, MARGIN = 2, FUN = cumsum)
+median.idx <- vector(mode = "numeric", length = x )
+k <- 6
+idx.vec <- seq(1, nrow(daily.counts))
+for (k in 1:x){
+  tmp <- cumsum.n[,k]
+  dif.k <- abs(tmp - median.n[k])
+  #print(idx.vec[dif.k == min(dif.k)])
+  median.idx[k] <- idx.vec[dif.k == min(dif.k)][1]
+}
+
+median.idx.df <- data.frame(Season = seasons,
+                            median.idx = median.idx) %>%
+  mutate(Year = lapply(str_split(Season, "/"), 
+                       FUN = function(x) x[2]) %>% 
+           unlist() %>% 
+           as.numeric())
+
+all.years %>% 
+  left_join(median.idx.df, by = "Year") %>% 
+  mutate(Season = paste0(Year, "/", Year+1)) -> median.idx.df
+
+# Combine with data in Rugh et al. 
+Rugh.data %>% 
+  dplyr::select(Season, Year, median.idx) %>%
+  rbind(median.idx.df %>% 
+          dplyr::select(Season, Year, median.idx)) %>%
+  mutate(Year.shifted = Year - min(Year)) -> median.idx.all.df
+
+# Use the segmented package to look at how the median dates changed
+# over time:
+lm.1 <- lm(median.idx ~ Year, data = median.idx.all.df)
+
+lm.1.seg.1 <- segmented(lm.1, 
+                        seg.Z = ~Year,
+                        psi = list(Year = c(1980, 2006)))
+
+slopes <- slope(lm.1.seg.1, conf.level = 0.95)
+
+fitted <- predict(lm.1.seg.1, se.fit = T)
+seg.1.fitted <- data.frame(fitted = fitted$fit,
+                           SE = fitted$se.fit,
+                           LCL = fitted$fit - 1.96 * fitted$se.fit,
+                           UCL = fitted$fit + 1.96 * fitted$se.fit,
+                           Year = median.idx.all.df %>% 
+                             na.omit() %>% 
+                             dplyr::select(Year),
+                           Season = median.idx.all.df %>% 
+                             na.omit() %>% 
+                             dplyr::select(Season))
+
+p.median.counts <- ggplot() +
+  geom_point(data = median.idx.all.df, 
+             aes(x = Year, y = median.idx)) + 
+  geom_line(data = seg.1.fitted,
+            aes(x = Year, y = fitted),
+            size = 1.2, color = "darkblue") +
+  geom_ribbon(data = seg.1.fitted,
+              aes(x = Year, ymin = LCL, ymax = UCL),
+              fill = "blue", alpha = 0.4)+
+  geom_rect(data = UMEs, 
+            aes(xmin = Year, xmax = Year+1,
+                ymin = 30, ymax = 60),
+            fill = "gold", alpha = 0.4) +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  scale_x_continuous(breaks = c(1970, 1980, 1990, 2000, 2010, 2020)) +
+  xlab("") + ylab("Median date (0 = December 1)")
+
+if (save.fig)
+  ggsave(filename = "figures/Median_date_2022.png",
+         plot = p.median.counts, device = "png",
+         dpi = 600)
+
+daily.counts.df <- data.frame(daily.counts)
+
+daily.counts.cumsum.df <- apply(daily.counts, 
+                                MARGIN = 2, cumsum) %>% 
+  data.frame()
+
+colnames(daily.counts.df) <- seasons
+colnames(daily.counts.cumsum.df) <- seasons
+#obsd.n.df$days <- idx.vec
+daily.counts.df.long <- pivot_longer(daily.counts.df, 
+                                     everything(),
+                                     names_to = "Season", 
+                                     values_to = "Counts") %>%  
+  arrange(Season)
+
+daily.counts.df.long$days <- rep(2:89, times = x)
+
+daily.counts.cumsum.df.long <- pivot_longer(daily.counts.cumsum.df, 
+                                            everything(),
+                                            names_to = "Season", 
+                                            values_to = "Counts") %>%  
+  arrange(Season)
+
+daily.counts.cumsum.df.long$days <- rep(2:89, times = x)
+
+p.daily.counts <- ggplot(daily.counts.df.long) +
+  geom_path(aes(x = days, y = Counts)) +
+  facet_wrap(vars(Season)) + 
+  geom_vline(data = median.idx.df,
+             aes(xintercept = median.idx),
+             color = "red", size = 1)
+
+if (save.fig)
+  ggsave(plot = p.daily.counts,
+         filename = "figures/daily_counts_v1.png",
+         device = "png", dpi = 600)
+
+p.daily.counts.cumu <- ggplot(daily.counts.cumsum.df.long) +
+  geom_path(aes(x = days, y = Counts)) +
+  facet_wrap(vars(Season)) + 
+  geom_vline(data = median.idx.df,
+             aes(xintercept = median.idx),
+             color = "red", size = 1) +
+  geom_text(data = median.idx.df,
+            aes(x = median.idx, 
+                y = 2500, 
+                label = median.idx)) + 
+  ylab("Cumulative counts")
+
+if (save.fig)
+  ggsave(plot = p.daily.counts.cumu,
+         filename = "figures/daily_counts_cumsum_v1.png",
+         device = "png", dpi = 600)
+
+p.daily.N <- ggplot(daily.N.df.long) +
+  geom_path(aes(x = days, y = N)) +
+  facet_wrap(vars(Season)) + 
+  geom_vline(data = median.idx.df,
+             aes(xintercept = median.idx),
+             color = "red", size = 1)
+
+if (save.fig)
+  ggsave(plot = p.daily.N,
+         filename = "figures/daily_N_v1.png",
+         device = "png", dpi = 600)
+
+
+p.median.date <- ggplot(median.idx.all.df) +
+  geom_point(aes(x = Year.shifted, y = median.idx))
+```
+
+Timing of migration, measured by the median migration date, changed significantly over the survey period (Figure \@ref(fig:Figure-phenology)). From the beginning of the survey (1967) through 1970s, they were generally earlier than 10 January (Day 40). They linearly increased over the 1980s, 1990s, and early 2000s. Since the mid 2000s, there was a linear decline. Estimated change points were `r signif(lm.1.seg.1$psi[1,2], 5)` (SE = `r signif(lm.1.seg.1$psi[1,3], 3)`) and `r signif(lm.1.seg.1$psi[2,2], 5)` (SE = `r signif(lm.1.seg.1$psi[2,3], 3)`). The estimated slopes for the three segments were `r signif(slopes$Year[1,1], 3)` (SE = `r signif(slopes$Year[1,2], 3)`), `r signif(slopes$Year[2,1], 3)` (SE = `r signif(slopes$Year[2,2], 3)`), and `r signif(slopes$Year[3,1], 3)` (SE = `r signif(slopes$Year[3,2], 3)`). ). The linear decline in the median southbound migration date since 2007 was not apparent in the median northbound migration date of mother-calf pairs, which increased by approximately one week when recent data (through 2016) was compared to that collected in the mid-1990s (Perryman et al. 2020).    
+
+```{r Figure-phenology, echo=FALSE, message=FALSE, fig.cap="Changes in median date of gray whale migration at the sampling area off Granite Canyon, CA (the date when 50% of the whale sightings had been recorded). December 1 of each year is 0 and January 10 is 40. Data before the 2006/2007 sampling season are from Rugh et al. (2001, Table 1).  Regression lines are linear models with change points. Yellow vertical bars indicate the designated UME."}
+
+knitr::include_graphics("figures/Median_date_2022.png")
+
+
+```
+
+### Abundance estimates {-}
+
+From `r min(as.Date(data.first.2022$V3, format = "%m/%d/%Y")) %>% format("%d %B %Y")` to `r max(as.Date(data.last.2022$V3, format = "%m/%d/%Y")) %>% format("%d %B %Y")`, `r nrow(unique.obs)` trained observers completed `r signif(sum(survey.hrs),3)` hours of survey effort over `r nrow(unique(survey.dates))` survey days. A total of `r nrow(whale.groups)` groups of `r sum(whale.groups$N)` gray whales were counted, with the highest daily count of `r max(whale.groups.daily$N)` whales on `r whale.groups.daily %>% filter(N == max(N))%>% dplyr::select("Date")%>%pull()%>%format("%d %B %Y")` (Figure \@ref(fig:Figure-daily-fit)). 
+
+
+```{r Figure-daily-fit, echo=FALSE, message=FALSE, fig.cap="Daily estimated numbers of gray whales migrating through the sampling area off Granite Canyon. Black lines are medians and orange bands indicate 95% credible intervals. Solid circles indicate observed counts."}
+
+knitr::include_graphics("figures/daily_estimates_v1.png")
+
+```
+
+
+Estimated abundance of gray whales during the 2021/2022 season was `r format.big.number(abundance.df.v1[nrow(abundance.df.v1), "Median"])` (95% CI: `r format.big.number(abundance.df.v1[nrow(abundance.df.v1), "LCL"])` - `r format.big.number(abundance.df.v1[nrow(abundance.df.v1), "UCL"])`). This estimate includes the multiplicative correction factor for the nighttime passage (mean = 1.0875, SD = 0.03625). This estimate was `r signif((abundance.df.v1[nrow(abundance.df.v1), "Median"] - abundance.df.v1[(nrow(abundance.df.v1)-1), "Median"])/abundance.df.v1[(nrow(abundance.df.v1)-1), "Median"], 3) * 100`% decline from the previous survey season (2019/2020, Table \@ref(tab:Table-nhats-v1), Figure \@ref(fig:Figure-nhats-v1)). 
+
+
+```{r Table-nhats-v1, echo=FALSE, warning=FALSE}
+flextable(all.estimates %>% na.omit() %>% dplyr::select(-Year)) %>% 
+  set_caption(paste0("Estimated abundance (Nhat) and 95% lower (LCL) and upper (UCL) confidence limits of gray whales from the visual surveys off Granite Canyon, CA. Estimates prior to the 2006/2007 season are from Laake et al. (2012), where confidence limits were computed using SE * 1.96. For the 2006/2007 through 2021/2022 seasons, the method of Durban et al. (2016) was used."))  %>%
+  colformat_double(j = c("LCL", "UCL"), digits = 1) %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+```
+
+The time series indicated that estimated abundances for the last two survey seasons have declined since the 2015/2016 season (Figure \@ref(fig:Figure-nhats-v1)), when the abundance reached one of the highest over the study period (`r format.big.number(as.numeric(all.estimates[all.estimates$Year == 2015, "Nhat"]))`, 95% CI = `r format.big.number(as.numeric(all.estimates[all.estimates$Year == 2015, "LCL"]))` - `r format.big.number(as.numeric(all.estimates[all.estimates$Year == 2015, "UCL"]))`). The most recent estimate was comparable to those from 2000/2001 and 2001/2002 (Table \@ref(tab:Table-nhats-v1)). 
+
+Those survey years coincided with an unusual mortality event (UME)^[Under the Marine Mammal Protection Act (MMPA), an unusual mortality event (UME) is defined as "a stranding that is unexpected; involves a significant die-off of any marine mammal population; and demands immediate response"]  that occurred in 1999 and 2000 when higher than usual strandings and deaths of gray whales were observed along the west coast of the United States, Mexico, and Canada. In total, 651 dead gray whales were reported, where 283 observed in 1999 and 368 in 2000 (Gulland et al. 2005). While the cause of this UME was not determined, some stranded whales were in poor body condition leading to questions about whether the population of approximately 21,000 ENP gray whales had reached the limit of what the Arctic feeding ground habitat could support (Moore et al. 2001). However, the population subsequently recovered from decline, and in 2016 the abundance was estimated at nearly its all-time high of 27,000 whales. This increase in abundance suggests that limit had either increased following the 1999-2000 UME or was never reached earlier and the decline was due to other, unknown cause(s). 
+
+In 2019, NOAA’s National Marine Fisheries Service declared the most recent UME for ENP gray whales^[https://www.fisheries.noaa.gov/national/marine-life-distress/2019-2022-gray-whale-unusual-mortality-event-along-west-coast-and]. As of June 3, 2022, 578 stranded whales were recorded with 216 in 2019, 172 in 2020, 114 in 2021, and 76 in 2022. While this UME appears to be at a slightly reduced level compared to the 1999-2000 UME, it overlaps with the observed 23.7% decline in abundance from 2016 to 2020 and then the 19.6% decline in abundance that occurred between 2020 and 2022. Given the increased number of strandings in 2019 that triggered the designation of a UME and the lower number of reported strandings since that time, it is likely that the majority of this decline occurred in 2019. This decline is comparable to that seen between 1987/1988, when the population reached what was then its highest estimated abundance (26,916 whales) of the time series, and 1992/1993, when the estimated abundance had fallen approximately 40% over the course of four years. Based on the available records, this decline was not associated with a marked increase in the number of stranded whales, as was the case in 1999-2000 and 2019-present. However, by 1993/1994 the estimate had increased to over 20,000, and the estimated abundance remained stable at near that level until the 1999-2000 UME. 
+
+The pattern of population growth and decline represented in the time series of abundance estimates for ENP gray whales suggests that large-scale fluctuations of this nature are not rare. The observed declines in abundance appear to represent short-term events that have not resulted in any detectable longer-term impacts on the population. That is, despite occasional declines in abundance since the time-series of data began in 1967, the overall trend has remained positive and neared peak numbers as recently as 2016 when the population was estimated at about 27,000 whales. 
+
+While ENP gray whales have shown long-term resilience to population fluctuations for which a direct cause has yet to be determined, NOAA/NMFS continue to closely monitor the population with regular surveys to estimate abundance, calf production and body condition (e.g., Perryman and Lynn 2002, Durban et al. 2015; 2017, Perryman et al. 2020). The results of these research efforts will continue to provide the best scientific information available regarding the status of the population.
+
+```{r Figure-nhats-v1, echo=FALSE, message=FALSE, fig.cap="Estimated abundance and 95% confidence intervals of gray whales from the visual surveys off Granite Canyon, CA, between the 1967/1968 and 2021/2022 seasons. Estimates in green indicate those from Laake et al. (2012). Estimates in red (from the 2006/2007 season) indicate those obtained using the method in Durban et al. (2016). Yello boxes represent unusual mortality events."}
+
+knitr::include_graphics("figures/nhats_v1.png")
+
+```
+
+
+
+## Acknowledgements {-}
+
+We thank our visual observer team for their diligence and meticulous data recording, sometimes in the inclement weather. Annette Henry, Lynn Evans, Tina Chen, and Robin LeRoux provided logistical support and survey planning to successfully carry out the mission. Bob Brownell graciously provided us with space in his office and local hospitality. We thank Bryn Phillips and Robert Luckert at the Marine Pollution lab at Granite Canyon who continuously support our field effort at the study site. Their friendship and problem solving onsite are invaluable. X and Y improved this work by way of their careful reviews. Funding for this project was provided by NOAA/NMFS.
+
+
+## Literature cited {-}
+
+Durban, J., Weller, D., Lang, A. and Perryman, W. (2015). Estimating gray whale abundance from shore-based counts using a multilevel Bayesian model. Journal of Cetacean Research and Management, 15, 61-68.
+
+Durban, J., Weller, D. and Perryman, W. (2017). Gray whale abundance estimates from shore-based counts off California in 2014/15 and 2015/16. Paper SC/A17/GW/06 presented to the International Whaling Commission, Scientific Committee, Bled, Slovenia.
+
+Gulland, F.M.D., Perez-Cortes, H. Urban, R., Rojas-Bracho, L., Ylitalo, G., Weir, J., Norman, S.A., Muto, M.M., Rugh, D.J., Kreuder, C. and Rowles, T. (2005). Eastern North Pacific gray whale (Eschrichtius robustus) unusual mortality event, 1999–2000 (NOAA Technical Memorandum NMFS-AFSC- 150-150). Washington, DC: U.S. Department of Commerce.
+
+Laake, J.L., Punt, A.E., Hobbs, R., Ferguson, M., Rugh, D. and Breiwick, J. (2012). Gray whale southbound migration surveys 1967-2006: An integrated re-analysis. Journal of Cetacean Research and Management, 12, 287-306.
+
+Moore, S. E., Urban, R. J., Perryman, W.L., Gulland, F., Perez-Cortes, M.H., Wade, P.R., Rojas-Bracho, L. and Rowles, T. (2001). Are gray whales hitting “K” hard? Marine Mammal Science, 17: 954-958.
+
+Muggeo, V. M. R. (2017). Interval estimation for the breakpoint in segmented regression: a smoothed score-based approach. Australian & New Zealand Journal of Statistics, 59, 311-322.
+
+Perryman, W. L., and Lynn, M.S. (2002). Evaluation of nutritive condition and reproductive status of migrating gray whales (Eschrichtius robustus) based on analysis of photogrammetric data. Journal of Cetacean Research and Management, 2, 155–164. 
+
+Perryman, W.L., Joyce, T., Weller, D.W. and Durban, J.W. (2020). Environmental factors influencing eastern North Pacific gray whale calf production 1994-2016. Marine Mammal Science 2020: 1-15. DOI: 10.1111/mms.12755
+
+Rugh, D.J., Shelden K.E.W, Schulman-Janiger, A. (2001) Timing of the gray whale southbound migration. Journal of Cetacean Research and Management 3, 31-39.
+
+Joshua D. Stewart and David W. Weller. 2021. Abundance of eastern North Pacific gray whales 2019/2020. U.S. Department of Commerce, NOAA Technical Memorandum NMFS-SWFSC-639. https://doi.org/10.25923/bmam-pe91
+

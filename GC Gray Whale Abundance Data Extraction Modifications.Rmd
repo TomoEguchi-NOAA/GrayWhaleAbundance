@@ -1,0 +1,152 @@
+---
+title: "Modification in data extraction and analysis of abundance of eastern North Pacific gray whales"
+author: "Tomo Eguchi"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::word_document2: default
+---
+
+
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+save.fig <- F
+
+source("Granite_Canyon_Counts_fcns.R")
+library(tidyverse)
+library(lubridate)
+library(flextable)
+
+set_flextable_defaults(font.size = 9,
+                       font.family = "Cambria")
+```
+
+
+This document details the modification in data extraction and analyses of eastern North Pacific (ENP) gray whales (*Eschrichtius robustus*) abundance surveys conducted at Granite Canyon, CA. The Southwest Fisheries Science Center (SWFSC) regularly conducts shore-based surveys of ENP gray whales to estimate abundance. These estimates are obtained from visual survey data collected off central California between December and February during the gray whale southward migration, and provide regular updates to a time series of abundance estimates that began in 1967 (Laake et al. 2012, Durban et al. 2015; 2017).
+
+A thorough review of data files revealed data entry errors in raw data and inconsistencies in summarized data, which was caused by the transcription errors. Although these errors were infrequent and, therefore, inconsequential to the results of previous analyses, in order to minimize (hopefully to remove) these errors, the data files were examined in details and errors corrected. Those corrections are detailed in a separate report (GC Data Extraction Update.Rmd). In this document, I explain the steps of the data extraction process and analysis. 
+
+For the estimation process, I use the same model as in Durban et al. (2015). An update to the analytical process is provided in a separate report.  
+
+## Data Extraction {-}
+
+This description only pertains to data from 2015, 2016, 2020 and 2022. I don't have original data files for previous years. The previous years' data need to be examined. 
+
+Data extraction is conducted using a script file ("Extract_Data_All_v2.Rmd"). It was named with the v2 suffix because I considered Josh Stewart's extraction code to be the first version. Josh created two functions for extracting past data; one for datasets before 2016 and another for those since 2016. I modified his functions so that one script file can be used for all data sets. 
+
+It is expected that all data files (one file per day) for one season are stored in one directory that is named with the year of survey (e.g., "Data/2015" if a relative path to the current working directory; also see below for the naming convention for year). The directory should contain nothing but the data files and all the files have the same naming convention. A common convention is "GWyymmdd_hhmmss EDITED.dat" where yy is 2-digit year, mm is month, dd is date, hh is hours, mm is minutes, and ss is seconds of the beginning of the survey day. The time is recorded as the local time (PST). Because a survey usually extends over two calendar years, it is defined that a season is the second of the two calendar years. For example, the 2019/2020 season is for year 2020. 
+
+A data file should have the following format:
+event ID, event code, date (mm/dd/yyyy), time (hh:mm:ss), other information
+
+The other information depends on the event code. When the event code is either B (begin survey) or E (end survey), there is no other information in the line. When the event code is P (beginning of a shift), three 3-letter observer codes are provided, where if there were only two observers, "N" follows the second observer initials. When the event code is V (viewing condition), Beaufort sea state and visibility conditions are provided (integers). When the event code is S (sighting), group ID (integer), bearing (integer), reticles (double), distance (double), the number of individuals (integer), two observer initials (strings), Beaufort sea state (integer), visibility code (integer), and the direction of movement (string). A data file may look like the following (data/2015/GW141231_071501 EDITED.dat):
+
+001 B	12/31/2014	07:30:05  
+002 P	12/31/2014	07:30:05	RLB	WLP	N  
+003 V	12/31/2014	07:30:05	2	3  
+004 V	12/31/2014	07:49:56	3	3  
+005 S	12/31/2014	08:04:47	1	281	0.99	2	1	RLB	WLP	3	3		South  
+006 S	12/31/2014	08:07:35	2	274	1.08	1.8	1	RLB	WLP	3	3		South  
+007 S	12/31/2014	08:09:24	2	275	0.96	2.1	1	RLB	WLP	3	3		South  
+...  
+043 S	12/31/2014	10:26:38	15	242	0.78	2.7	1	DWW	RLB	5	4		South  
+044 E	12/31/2014	10:30:18  
+045 B	12/31/2014	12:00:34  
+046 P	12/31/2014	12:00:35	RLB	WLP	N  
+047 V	12/31/2014	12:00:36	4	3  
+048 S	12/31/2014	12:03:31	16	238	0.71	3	2	RLB	WLP	4	3		South  
+049 V	12/31/2014	12:30:18	3	2  
+051 S	12/31/2014	12:46:27	17	290	1.57	1.1	1	RLB	WLP	3	2		South  
+...  
+137 S	12/31/2014	16:24:24	43	258	0.55	4	1	WLP	DWW	3	2		South  
+138 S	12/31/2014	16:25:20	42	267	0.96	2.1	1	WLP	DWW	3	2		South  
+139 E	12/31/2014	16:30:08
+
+Survey effort may end mid day (event code = "E") when the survey condition becomes too prohibitive in finding blows (high wind, fog, etc.). This happened at 10:13:18 in the example. If the conditions improve subsequently, survey can restart with an event "B." It is essential that each survey effort starts with an "B" event and that each data file ends with an "E" event. When there is no "E" event at the end of the file, the data extraction function (*get.data*) adds a line with its event code "E" that is 5 seconds after the last entry. 
+
+Each file is read using the *get.data* function. The function requires three inputs (dir, YEAR, ff). dir refers to the path to where the data files are stored. YEAR is the survey year, which is used to find the correct directory. ff is a file identification number, where files in the directory are ordered alphabetically. 
+
+The function *get.data* returns a data frame, which contains all necessary data from a raw data file (the ff-th file in "dir/YEAR/"). 
+
+```{r get.data.example}
+dat.2014.12.31 <- get.data(dir = "Data", YEAR = 2015, ff = 2)
+head(dat.2014.12.31)
+```
+
+The warning message "Warning: NAs introduced by coercion" is a result of filtering out initial comment lines. The first field (column) should only include event ID, i.e., 001, 002, etc. In some files, however, there were some comments at the beginning of the file, e.g., "EDITED for JWD". To eliminate these lines, the first column was converted into numeric values, e.g., 011 to be 11, using the *as.numeric* function. This function returns "NA" when it encounters non-numeric entries and provide the warning message ("NAs introduced by coercion").
+
+No variable names are provided, except "begin" and "shift." "begin" is the hours since the midnight of December 1, and "shift" indicates the shift of each row. 
+
+The output of *get.data* is used in the *get.shift* function, which is in "Granite_Canyon_Counts_fcns.R." It takes four inputs (YEAR, data, ff, i), where YEAR is year, data is the output of *get.data*, ff is the file identification number (used in *get.data* above), and i is the i-th shift. For example, we can extract the third shift for this survey day using the following code:
+
+```{r third.shift}
+
+shift.3 <- get.shift(YEAR = 2015, data = dat.2014.12.31, ff = 2, i = 3)
+
+```
+
+
+The output of *get.shift* is a list of four objects (all data frames); **out.df**, **data**, **data.shift**, and **data.next.shift**. 
+
+**out.df** summarizes the shift. The information includes begin and end hours since the midnight of 1 December (begin and end, respectively), the duration of the shift in days (dur), maximum Beaufort and visibility codes (bf and vs, respectively), the number of observed whales (n), the primary observer (obs), file ID number (ff), shift number (i), beginning time of the shift in hours (BeginHr), and the number of days since 1 December (BeginDay).
+
+```{r third.shift.out}
+shift.3$out.df
+```
+
+**data** contains sightings only with relevant information (event code = "S"). 
+
+```{r third.shift.data}
+head(shift.3$data)
+```
+
+
+**data.shift** contains all sightings plus other entries (all event codes).
+
+```{r third.shift.data.shift}
+head(shift.3$data.shift)
+```
+
+
+**data.next.shift** contains all entries for the next shift (shift ID = 4 in this example).
+
+```{r third.shift.next.shift}
+head(shift.3$data.next.shift)
+```
+
+To estimate abundance using the method of Durban et al. (2015), the **out.df** object (i.e., the summary information for this shift) is combined for all dates within the year. In the previous analysis, short survey shifts were discarded. This can be relaxed by having the shift duration as an explicit variable in the analysis. 
+
+In the *get.shift* function, Beaufort and visibility codes were used to remove some shifts. Specifically, if BF or VS changed to 5 within the last 5 minutes of the shift, the entire shift is kept and max(BF/VS) was considered < 5. However, if BF/VS was changed to 5 before the 5-min from the end, the entire shift was removed because the max BF/VS was considered 5. The arbitrary cut off time (5 min) should be reexamined. Alternatively, all effort during BF/VS < 5 should be retained. 
+
+In "Extract_Data_All_v2.Rmd," all files in a data directory for one year are processed using these functions (*get.data* and *get.shift*) and results compiled. They are saved as a list of 6 named objects (**Data_Out**, **Correct_Length**, **Final_Data**, **Complete_Data**, and **WPH**). 
+
+**Data_Out** (data.frame): It is the raw output of *get.shift* for the season. All shifts from all survey days are combined together without any filtering (except those that happened in *get.data* and *get.shift* that are described above).
+
+**Correct_Length**: It is a subset of **Data_Out**, where shift periods with duration that is greater than or less than the shift duration (90 min) +/- grace period of 5 min are eliminated. It is created by the following code (as of 2022-08-11).
+
+Data_Out %>%  
+  filter(dur > (shift_dur_min - grace_min)/(24*60) &  
+           dur < (shift_dur_min + grace_min)/(24*60)) -> Correct_Length
+
+**Final_Data** (data.frame): It is a subset of **Correct_Length**. The number of sightings per shift that occurred when Beaufort < 5 and visibility code was < 5. It is created by the following code (as of 2022-08-11).
+
+Final_Data <- Correct_Length %>%  
+  filter(bf < 5, vs < 5)
+
+**Complete_Data** (data.frame): It is a subset of **Final_Data** where incomplete data rows are removed. It is possible that this and **Final_Data** are identical. 
+
+**WPH** (tibble): Whales per hour. This is a daily summary of **Complete_Data**. It is created by the following code (as of 2022-08-11). 
+
+WPH <- Complete_Data %>%  
+  mutate(DaysSinceDec1 = as.numeric(BeginDay)) %>%  
+  group_by(DaysSinceDec1) %>%  
+  summarize(TotalWhales = sum(n),  
+  TotalEffort = sum(Eff),  
+  WPH = sum(n)/(sum(Eff)*24)) 
+
+When running "Extract_Data_All_v2.Rmd", the following warning will show up on the console many times: "Warning: NAs introduced by coercion". The cause of this warning was explained earlier. Every time *get.data* function encounters a comment line without event ID (possibly for all files), this warning is returned. 
+
+## Estimation {-}
+
+The analysis is done in "WinBUGS Ver2.Rmd". 
