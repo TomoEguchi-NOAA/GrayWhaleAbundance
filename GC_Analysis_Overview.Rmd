@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Overview
 
-This document describes how data from the Granite Canyon survey are used to create abundance estimates for gray whales. Raw data should be edited and saved (Aimée Lang is in charge of this step as of Feburary 2025). Raw data should be edited and edited files should be stored in one directory. Currently, I have a subdirectory within this project named "Data". It is case sensitive. Data for each year are separated into a subdirectory, e.g., "Data/2024". Each file in this subdirectory should contain data for one day. These files will be used in the following steps to create the input object for WinBUGS. 
+This document describes how data from the Granite Canyon survey are used to create abundance estimates for gray whales. Raw data should be edited and saved (Aimée Lang is in charge of this step as of February 2025). Raw data should be edited and edited files should be stored in one directory. Currently, I have a subdirectory within this project named "Data". It is case sensitive. Data for each year are separated into a subdirectory, e.g., "Data/2024". Each file in this subdirectory should contain data for one day. These files will be used in the following steps to create the input object for WinBUGS. 
 
 1. Extract data from edited data files (Extract_Data_All_v2.Rmd)
 2. Run WinBUGS (WinBUGS Ver2.Rmd)
