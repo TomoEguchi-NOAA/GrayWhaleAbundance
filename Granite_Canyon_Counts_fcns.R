@@ -905,7 +905,7 @@ data2WinBUGS_input <- function(data.dir, years, min.dur){
       
     }
 
-    # if the new saeson has less rows than previous maximum
+    # if the new season has less rows than previous maximum
     if (nrow(n.k) < nrow(n)) {
       n.k.1 <- abind(n.k, 
                      array(0, dim = c(dim(n)[1] - dim(n.k)[1],

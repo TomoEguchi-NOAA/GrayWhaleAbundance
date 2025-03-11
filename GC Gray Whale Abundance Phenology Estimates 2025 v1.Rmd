@@ -546,8 +546,25 @@ seg.1.fitted <- data.frame(fitted = fitted$fit,
                              na.omit() %>% 
                              dplyr::select(Season))
 
-# segmented regression for one less year
-lm.2 <- lm(median.idx ~ Year, data = median.idx.one.less)
+# Turns out the numbers of whales in the data for the 2009/2010 and 2010/2011
+# seasons are different between the 2024 analysis and 2025 analysis. Consequently,
+# the estimated slopes for segments are different if I use the data from this year.
+# In the report, I provide slopes for the previous estimates, which need to be
+# hard coded in the text. The differences in the numbers came from... In the new
+# BUGS input, there are more shifts than in the previous analysis (found in GC Gray
+# Whale Abundance Phenology Estimates 2024 v1.Rmd in the Granite_Canyon_Counts project).
+# In the 2024 analysis, watch lengths for 2009/2010 are set at one value (0.06249996 days).
+# In the new (2025) analysis, they are actually computed using the raw data. I think 
+# the new analysis is more accurate than the 2024 analysis. 
+# 
+# In the 2024 analysis, they were 2034 and 2885. For the 2025 analysis, they were
+# 2061 and 3067. 
+
+# segmented regression for one less year - I will not use this for this time in 
+# order to keep the numbers same as the last year's report. Differences, however,
+# are quite minor. 
+lm.2 <- lm(median.idx ~ Year, 
+           data = median.idx.one.less)
 
 lm.2.seg.1 <- segmented(lm.2, 
                         seg.Z = ~Year,
@@ -659,7 +676,7 @@ if (save.fig)
 #   geom_point(aes(x = Year.shifted, y = median.idx))
 ```
 
-As it was reported in previous reports (Eguchi et al. 2023, 2024), timing of migration, measured by the median migration date, changed significantly over the survey period (Figure \@ref(fig:Figure-phenology)). From the beginning of the survey (1967) through 1970s, they were generally earlier than 10 January (Day 40). They linearly increased over the 1980s, 1990s, and early 2000s. Since the mid 2000s, there was a linear decline. Estimated change points were `r signif(lm.1.seg.1$psi[1,2], 5)` (SE = `r signif(lm.1.seg.1$psi[1,3], 3)`) and `r signif(lm.1.seg.1$psi[2,2], 5)` (SE = `r signif(lm.1.seg.1$psi[2,3], 3)`). As expected, these estimated change points were statistically not different from those from the last year (1976 $\pm$ 3.63, 2008 $\pm$ 3.84). The estimated slopes for the three segments were `r signif(slopes$Year[1,1], 3)` (SE = `r signif(slopes$Year[1,2], 3)`), `r signif(slopes$Year[2,1], 3)` (SE = `r signif(slopes$Year[2,2], 3)`), and `r signif(slopes$Year[3,1], 3)` (SE = `r signif(slopes$Year[3,2], 3)`), respectively. Estimated slopes also were not different from the previous report (-0.13 $\pm$ 0.361, 0.468 $\pm$ 0.077, -0.238 $\pm$ 0.221, Eguchi et al. 2024). The median migration date for the 2023/2024 season was `r median.idx.df[nrow(median.idx.df), "median.idx"]`, which was `r median.idx.df[nrow(median.idx.df), "median.idx"] - median.idx.df[nrow(median.idx.df)-1, "median.idx"]` days later than the previous season. Biological and ecological significance of this difference is unknown. Studies on body conditions, environmental fluctuations, and health conditions of gray whales may provide information on possible mechanisms of changes in the migration timing of gray whales.
+As it was reported in previous reports (Eguchi et al. 2023, 2024), timing of migration, measured by the median migration date, changed significantly over the survey period (Figure \@ref(fig:Figure-phenology)). From the beginning of the survey (1967) through 1970s, they were generally earlier than 10 January (Day 40). They linearly increased over the 1980s, 1990s, and early 2000s. Since the mid 2000s, there was a linear decline. Estimated change points were `r signif(lm.1.seg.1$psi[1,2], 5)` (SE = `r signif(lm.1.seg.1$psi[1,3], 3)`) and `r signif(lm.1.seg.1$psi[2,2], 5)` (SE = `r signif(lm.1.seg.1$psi[2,3], 3)`). As expected, these estimated change points were statistically not different from those from the last year (1976.5 $\pm$ 3.89, 2008 $\pm$ 3.37). The estimated slopes for the three segments were `r signif(slopes$Year[1,1], 3)` (SE = `r signif(slopes$Year[1,2], 3)`), `r signif(slopes$Year[2,1], 3)` (SE = `r signif(slopes$Year[2,2], 3)`), and `r signif(slopes$Year[3,1], 3)` (SE = `r signif(slopes$Year[3,2], 3)`), respectively. Estimated slopes also were not different from the previous report (-0.104 $\pm$ 0.355, 0.476 $\pm$ 0.0885, -0.273 $\pm$ 0.162, Eguchi et al. 2024). The median migration date for the `r seasons[length(seasons)]` season was `r median.idx.df[nrow(median.idx.df), "median.idx"]`, which was `r abs(median.idx.df[nrow(median.idx.df), "median.idx"] - median.idx.df[nrow(median.idx.df)-1, "median.idx"])` days earlier than the previous season. Biological and ecological significance of this difference is unknown. Studies on body conditions, environmental fluctuations, and health conditions of gray whales may provide information on possible mechanisms of changes in the migration timing of gray whales.
 
 ## Acknowledgements {.unnumbered}
 
@@ -675,8 +692,8 @@ We thank our visual observer team for their diligence and meticulous data record
 ## Tables and figures {.unnumbered}
 
 ```{r Table-Nhats-v1, echo=FALSE, warning=FALSE}
-flextable(all.estimates.new %>% dplyr::select(-Year)) %>% 
-  set_caption(paste0("Estimated abundance (Nhat) and 95% lower (LCL) and upper (UCL) confidence limits of gray whales from the visual surveys off Granite Canyon, CA. Estimates prior to the 2006/2007 season are from Laake et al. (2012), where confidence limits were computed using the lognormal distribution. For the 2006/2007 through 2023/2024 seasons, the method of Durban et al. (2016) was used. Nhat.2023 refers to the estimated abundance (Nhat) reported in Eguchi et al. 2023a."))  %>%
+flextable(all.estimates.new %>% dplyr::select(-c(Year, Nhat.2024))) %>% 
+  set_caption(paste0("Estimated abundance (Nhat) and 95% lower (LCL) and upper (UCL) confidence limits of gray whales from the visual surveys off Granite Canyon, CA. Estimates prior to the 2006/2007 season are from Laake et al. (2012), where confidence limits were computed using the lognormal distribution. For the 2006/2007 through 2024/2025 seasons, the method of Durban et al. (2016) was used. "))  %>%
   colformat_double(j = c("LCL", "UCL"), digits = 1) %>%
   set_table_properties(width = 0.5, layout = "autofit")
 ```
@@ -691,7 +708,7 @@ knitr::include_graphics(paste0("Figures/daily_estimates_", YEAR, ".png"))
 
 \newpage
 
-```{r Figure-nhats-v1, echo=FALSE, message=FALSE, fig.cap="Estimated abundance and 95% CIs (confidence intervals for the method of Laake et al. and credible intervals for the method of Durban et al.) of gray whales from the visual surveys off Granite Canyon, CA, between the 1967/1968 and 2023/2024 seasons. Estimates in green indicate those from Laake et al. (2012) whereas those in red (from the 2006/2007 season) indicate using the method in Durban et al. (2016). Yello boxes represent unusual mortality events."}
+```{r Figure-nhats-v1, echo=FALSE, message=FALSE, fig.cap="Estimated abundance and 95% CIs (confidence intervals for the method of Laake et al. and credible intervals for the method of Durban et al.) of gray whales from the visual surveys off Granite Canyon, CA, between the 1967/1968 and 2024/2025 seasons. Estimates in green indicate those from Laake et al. (2012) whereas those in red (from the 2006/2007 season) indicate using the method in Durban et al. (2016). Yellow boxes represent unusual mortality events."}
 
 knitr::include_graphics(paste0("Figures/nhats_", YEAR, ".png"))
 
@@ -699,7 +716,7 @@ knitr::include_graphics(paste0("Figures/nhats_", YEAR, ".png"))
 
 \newpage
 
-```{r Figure-phenology, echo=FALSE, message=FALSE, fig.cap="Changes in median date of gray whale migration at the sampling area off Granite Canyon, CA (the date when 50% of the whale sightings had been recorded). December 1 of each year is 0 and January 10 is 40. Data before the 2006/2007 sampling season are from Rugh et al. (2001, Table 1).  Regression lines are linear models with change points. Yellow vertical bars indicate the designated UME."}
+```{r Figure-phenology, echo=FALSE, message=FALSE, fig.cap="Changes in median date of gray whale southbound migration at the sampling area off Granite Canyon, CA (the date when 50% of the whale sightings had been recorded). December 1 of each year is 0 and January 10 is 40. Data before the 2006/2007 sampling season are from Rugh et al. (2001, Table 1).  Regression lines are linear models with change points (see text for estimates of change points). Yellow vertical boxes indicate the designated UME."}
 
 knitr::include_graphics(paste0("Figures/Median_date_", YEAR, ".png"))
 
