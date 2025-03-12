@@ -149,6 +149,7 @@ all.years <- data.frame(Year = seq(from = min(Laake.estimates$Year),
 # Observer list gets updated as new observers are added. 
 x <- length(seasons)
 
+# Uses raw data files to compute summary statistics for each year
 summary.season <- function(season.name){
   # Change the pattern as needed - this should be standardized.
   all.files. <- list.files(path = paste0("Data/", season.name, "/"),
@@ -215,22 +216,26 @@ summary.season <- function(season.name){
                                     to = max(whale.groups$Date),
                                     by = "day"),
                          N.0 = 0,
-                         Effort.0 = 0) %>%
+                         Effort.0 = 0,
+                         n.Groups.0 = 0) %>%
     mutate(DOS = as.numeric(Date - as.Date(paste0(season.name-1, "-12-01"))))
   
   # daily counts
   whale.groups %>%
     group_by(Date) %>%
-    summarize(N = sum(N))  %>%
+    summarize(N = sum(N),
+              n.Groups = n())  %>%
     ungroup() %>%
     right_join(survey.hrs, by = "Date") %>%
     right_join(dates.df, by = "Date") %>%
     arrange(Date) %>%
     mutate(N.1 = ifelse(is.na(N), N.0, N),
-           Effort.1 = ifelse(is.na(Effort), Effort.0, Effort)) %>%
+           Effort.1 = ifelse(is.na(Effort), Effort.0, Effort),
+           n.Groups.1 = ifelse(is.na(n.Groups), n.Groups.0, n.Groups)) %>%
     transmute(Date = Date,
               N = N.1,
               Effort = Effort.1,
+              n.Groups = n.Groups.1,
               DOS = DOS) %>%
     mutate(cumu.N = cumsum(N),
            cumu.Effort = cumsum(Effort),
@@ -238,6 +243,7 @@ summary.season <- function(season.name){
   
   return(list(data.first. = data.first.,
               data.last. = data.last.,
+              data.all = data.all,
               survey.hrs = survey.hrs,
               whale.groups = whale.groups,
               whale.groups.daily = whale.groups.daily))
@@ -252,8 +258,11 @@ years.to.summarize <- c(2015, 2016, 2020, 2022, 2023, 2024, 2025)
 # 2023-02-06: Removed an extra "V" at the end of the day
 yrs.summary <- lapply(years.to.summarize, FUN = summary.season)
 
-data.first. <- yrs.summary[[length(years.to.summarize)]]$data.first.
-data.last.  <- yrs.summary[[length(years.to.summarize)]]$data.last.
+new.summary <- yrs.summary[[length(years.to.summarize)]]
+
+data.all <- new.summary$data.all
+data.first. <- new.summary$data.first.
+data.last.  <- new.summary$data.last.
 
 whale.groups.daily.list <- lapply(yrs.summary, 
                                   FUN = function(x) x$whale.groups.daily)
@@ -275,15 +284,15 @@ The Southwest Fisheries Science Center (SWFSC) regularly conducts shore-based su
 
 Data for this updated abundance estimate were collected during the `r YEAR-1`-`r YEAR` southward ENP gray whale migration between `r min(as.Date(data.first.$V3, format = "%m/%d/%Y")) %>% format("%d %B %Y")` and `r max(as.Date(data.last.$V3, format = "%m/%d/%Y")) %>% format("%d %B %Y")`. Counts were made from a shore-based watch station at Granite Canyon, California, by observer pairs rotating from a larger pool. Each survey day was split into six 90-minute shifts. As was the case for the previous analyses since 2006, only shifts with at least 85 minutes of survey effort were included in the analysis. Some shifts were less than 85 minutes due to inclement weather and less-than-ideal sighting conditions (e.g., Beaufort sea state greater than 4). Sampling and analytical methods are described in a previous publication (@durban2015a.
 
-The estimate of abundance reported here was computed using the N-mixture modeling approach used previously by SWFSC for surveys conducted between the 2006/2007 and `r seasons[length(seasons)-1]` seasons (Durban et al. 2015, 2017, Stewart and Weller 2021a, Eguchi et al. 2022a, 2023a, 2024). In this approach, the sighting probability of shore-based observers was estimated by using data from replicate surveys (i.e., data collected simultaneously by two independent observer teams) that were completed in the  2009/2010 and 2010/2011 seasons and covariates that affect sighting probabilities (i.e., visibility, sea state, and observers). These sighting probability estimates allowed the total number of whales passing through the survey area during a watch period to be estimated from the observed number of whales, even in years when replicate surveys were not conducted.
+The estimated abundance reported here was computed using the N-mixture modeling approach used previously by SWFSC for surveys conducted between the 2006/2007 and `r seasons[length(seasons)-1]` seasons (Durban et al. 2015, 2017, Stewart and Weller 2021a, Eguchi et al. 2022a, 2023a, 2024). In this approach, the sighting probability of shore-based observers was estimated by using data from replicate surveys (i.e., data collected simultaneously by two independent observer teams) that were completed in the  2009/2010 and 2010/2011 seasons and covariates that affect sighting probabilities (i.e., visibility, sea state, and observers). These sighting probability estimates allowed the total number of whales passing through the survey area during a watch period to be estimated from the observed number of whales, even in years when replicate surveys were not conducted.
 
-In the analysis, the start date of the southward migration for the Granite Canyon study site is fixed at 1 December and the end date at 28 February, where the number of whales passing the watch station on those two dates is assumed zero. The daily count data are assumed to be random deviates from binomial distributions with the estimated sighting probability and the true but unknown number of whales in the sampling area, which is assumed to change as a function of the number of days since 1 December. The model fits two possible functions to the daily counts of whales and select a function that fits better for each count. These functions are (a) a normal distribution with the peak in the daily number of whales passing occurs at the midpoint of the migration and (b) a spline fit that allows the overall migration curve to flexibly match the observed daily counts without expectations about the shape of the curve. The model then internally selects which of these two candidate migration curves best matches the daily number of observed whales. The final abundance estimate is the sum of the total number of whales passing the survey area each day (i.e., both observed whales and the estimated number of unobserved whales), with a correction factor applied to account for those that migrate through the study area at night (Perryman et al. 1999). The modeling approach is described in detail in Durban et al. (2015; 2017).
+In the analysis, the start date of the southward migration for the Granite Canyon study site is fixed at 1 December and the end date at 28 February, where the number of whales passing the watch station on those two dates is assumed zero. The daily count data are assumed to be random deviates from binomial distributions with the estimated sighting probability and the true but unknown number of whales in the sampling area, which is assumed to change as a function of the number of days since 1 December. The model fits two possible functions to the daily counts of whales and select a function that fits better for each count. These functions are (i) a normal distribution with the peak in the daily number of whales passing occurs at the midpoint of the migration and (ii) a spline fit that allows the change in the daily number of whales to flexibly match the observed daily counts without expectations about the shape of the curve. The model then internally selects which of these two candidate functions best matches the daily number of observed whales. The final abundance estimate is the sum of the estimated number of whales passing the survey area each day, with a correction factor applied to account for those that migrate through the study area at night (Perryman et al. 1999). The modeling approach is described in detail in Durban et al. (2015; 2017).
 
-Because the N-mixture modeling approach uses all data since the 2006/2007 season to estimate parameters that are shared among yearly datasets, estimated abundances change as more data are added to the analysis. In the past, we only provided the new estimate and kept the estimates for previous years as they were provided in the reports. In this report, we provide only updated estimates. For old estimates, please see Eguchi et al. (2024). 
+Because the N-mixture modeling approach uses all data since the 2006/2007 season to estimate parameters that are shared among yearly datasets, estimated abundances change as more data are added to the analysis. Before the 2024 report (Eguchi et al. 2024), only the new estimate was provided while keeping the estimates for previous years as they were provided in the reports. In the 2024 report, we provided both old and new estimates. In this report, we provide only updated estimates for all years since the 2006/2007 season. For old estimates, please see Eguchi et al. (2024). 
 
-Similarly to the recent reports (Eguchi et al. 2022a, 2023a, 2024), we examined the annual median migration date, which was defined previously [@rugh_timing_2001] as "the date when 50% of the whale sightings had been recorded at a research site or (if data were not available for calculating the median) the date corresponding with the apex of a unimodal sighting curve." Using the first definition, these dates are determined using sightings rather than estimated abundances. The latter definition, however, is applicable for estimated numbers, if the model has a unimodal distribution. In our approach, the model selected a better function between the normal and spline fits for each day. Consequently, the results are not unimodal for some years (Figure \@ref(fig:Figure-daily-fit)). We, therefore, use the date when 50% of the whale sightings had been recorded as the median date.
+Similarly to the recent reports (Eguchi et al. 2022a, 2023a, 2024), we examined the annual median migration date, which was defined previously [@rugh_timing_2001] as "the date when 50% of the whale sightings had been recorded at a research site or (if data were not available for calculating the median) the date corresponding with the apex of a unimodal sighting curve." Following the first definition, median migration dates are determined using sightings rather than estimated abundances. The latter definition, however, is applicable for estimated numbers, if the model has a unimodal distribution. In our approach, the model selected a better function between the normal and spline fits for each day. Consequently, the results are not unimodal for some years (Figure \@ref(fig:Figure-daily-fit)). We, therefore, use the date when 50% of the whale sightings had been recorded as the median migration date.
 
-Linear models were fitted to the relationship between median dates and year. In order to estimate change points, if existed, we fitted segmented linear models using the *segmented* package (v. `r packageVersion("segmented")`, @muggeo_interval_2017). All statistical analyses were conducted within the R statistical environment (v. `r paste0(R.Version()$major, ".", R.Version()$minor)`, R Core Team `r R.Version()$year`).
+In order to examine possible changes in the median migration dates over time, segmented linear models were fitted to the relationship between median migration dates and year using the *segmented* package (v. `r packageVersion("segmented")`, @muggeo_interval_2017). All statistical analyses were conducted within the R statistical environment (v. `r paste0(R.Version()$major, ".", R.Version()$minor)`, R Core Team `r R.Version()$year`).
 
 ## Results and Discussion {.unnumbered}
 
@@ -417,7 +426,7 @@ estimate.last.year <- all.estimates.new %>% filter(Year == (YEAR-1))
 
 
 # find daily effort: there are 90 days, where 1st and 90th are zeros.
-# This was already done above. whale.groups.daily.df - compare them with 
+# This was already done above. yrs.summary - compare them with 
 # the code here. 
 daily.effort <- daily.n <- daily.N <- matrix(nrow = 88, ncol = x)
 Watch.Length <- WinBUGS.results$BUGS.input$data$Watch.Length
@@ -472,13 +481,18 @@ if (save.fig)
          plot = p.daily,
          device = "png", dpi = 600)
 
+# Using yrs.summary to see how many hours were spent on surveys as total (not 
+# eliminating short shifts)
+survey.hrs.new <- yrs.summary[[length(yrs.summary)]]$survey.hrs
+whale.groups.daily.new <- yrs.summary[[length(yrs.summary)]]$whale.groups.daily
+
 ```
 
 ### Abundance estimates {.unnumbered}
 
-From `r format(as.Date(paste0(YEAR - 1, "-11-30")) + data.new$Data_Out[1, "BeginDay"], "%d %B %Y")` to `r format(as.Date(paste0(YEAR - 1, "-11-30")) + data.new$Data_Out[nrow(data.new$Data_Out), "BeginDay"], "%d %B %Y")`, `r length(unique(data.new$Data_Out$obs))` trained observers completed `r signif(sum(data.new$Data_Out$dur) * 24, 4)` hours of survey effort over `r length(unique(data.new$Data_Out$BeginDay))` survey days. A total of `r sum(data.new$Data_Out$npods)` groups of `r sum(data.new$Data_Out$n)` gray whales were counted, with the highest daily count of `r max(daily.counts$n.day)` whales on `r daily.counts %>% filter(n.day == max(n.day)) %>% dplyr::select("Date") %>% as.data.frame() %>% format("%d %B %Y")` (Figure \@ref(fig:Figure-daily-fit)). Due to the inclement weather and other constraints (e.g., poor visibility due to fog and rain), some observation periods were \< 85 min in duration and were excluded from analysis. Consequently, `r signif(sum(data.new$Complete_Data$dur) * 24, 4)` hours of survey effort was retained for further analyses. Estimated total abundance of gray whales during the `r paste0(YEAR-1, "/", YEAR)` southbound migration season was `r estimate.new$Nhat %>% format.big.number()` (95% Credible Interval: `r estimate.new$LCL %>% format.big.number()` - `r estimate.new$UCL %>% format.big.number()`, CV = `r signif(CV.Nhat.new, 3)`, 20-percentile = `r quantile(WinBUGS.results$BUGS.out$sims.list$Corrected.Est[,x], 0.2) %>% format.big.number()`). This estimate includes the multiplicative correction factor for nighttime passage (mean = 1.0875, SD = 0.03625, Perryman et al. 1999). This estimate represents a `r abs(signif((estimate.new$Nhat - estimate.last.year$Nhat)/estimate.last.year$Nhat, 3)) * 100`% decrease from the previous estimate for the `r seasons[(length(seasons)-1)]` season (`r estimate.last.year$Nhat %>% format.big.number()`; Table \@ref(tab:Table-Nhats-v1)). After an observed increase between the 2022/2023 and 2023/2024 seasons, this was a disappointing result. (Figure \@ref(fig:Figure-nhats-v1)). 
+From `r format(as.Date(paste0(YEAR - 1, "-11-30")) + data.new$Data_Out[1, "BeginDay"], "%d %B %Y")` to `r format(as.Date(paste0(YEAR - 1, "-11-30")) + data.new$Data_Out[nrow(data.new$Data_Out), "BeginDay"], "%d %B %Y")`, `r length(unique(data.new$Data_Out$obs))` trained observers completed `r signif(whale.groups.daily.new[nrow(whale.groups.daily.new), "cumu.Effort"], 4)` hours of survey effort over `r nrow(whale.groups.daily.new)` survey days. A total of `r sum(whale.groups.daily.new$n.Groups)` groups of `r whale.groups.daily.new[nrow(whale.groups.daily.new), "cumu.N"]` whales were counted. The highest daily count was `r max(daily.counts$n.day)` whales on `r daily.counts %>% filter(n.day == max(n.day)) %>% dplyr::select("Date") %>% as.data.frame() %>% format("%d %B %Y")` (Figure \@ref(fig:Figure-daily-fit)). Due to the inclement weather and other constraints (e.g., poor visibility due to fog and rain), some observation periods were \< 85 min in duration and were excluded from analysis. Consequently, `r signif(sum(data.new$Complete_Data$dur) * 24, 4)` hours of survey effort with `r sum(daily.n.df[,ncol(daily.n.df)])` whales in `r sum(daily.counts$n.group)` groups was retained for further analyses. Estimated total abundance of ENP gray whales during the `r paste0(YEAR-1, "/", YEAR)` southbound migration season was `r estimate.new$Nhat %>% format.big.number()` (95% Credible Interval: `r estimate.new$LCL %>% format.big.number()` - `r estimate.new$UCL %>% format.big.number()`, CV = `r signif(CV.Nhat.new, 3)`, 20-percentile = `r quantile(WinBUGS.results$BUGS.out$sims.list$Corrected.Est[,x], 0.2) %>% format.big.number()`). This estimate includes the multiplicative correction factor for nighttime passage (mean = 1.0875, SD = 0.03625, Perryman et al. 1999). This estimate represents a `r abs(signif((estimate.new$Nhat - estimate.last.year$Nhat)/estimate.last.year$Nhat, 3)) * 100`% decrease from the previous estimate for the `r seasons[(length(seasons)-1)]` season (`r estimate.last.year$Nhat %>% format.big.number()`; Table \@ref(tab:Table-Nhats-v1)). After an observed increase between the 2022/2023 and 2023/2024 seasons, this was a disappointing finding (Figure \@ref(fig:Figure-nhats-v1)). This is the second lowest estimate since the survey started in 1967.
 
-Using the long time series of estimated abundance of ENP gray whales from Granite Canyon, CA, a recent integrated population modeling analysis indicated that fluctuations in the gray whale abundance was likely associated with availability of benthic prey in the Arctic region ([@stewart_boom-bust_2023]). The time series suggests that observed fluctuations are common. The observed declines in abundance might represent short-term events that had not resulted in any detectable longer-term impacts on the population. That is, despite occasional declines in abundance since the time-series of data began in 1967, the population continues to fluctuate (Figure \@ref(fig:Figure-nhats-v1). Given the rapid changes in ocean environment, especially in the Arctic region where gray whales forage, continuous monitoring is essential to determine the degree of fluctuations in the future. NOAA/NMFS plan to closely monitor the population with regular surveys to estimate abundance, calf production and body condition of gray whales. The results of these research efforts will continue to provide the best scientific information available regarding the status of the population.
+Using the long time series of estimated abundance of ENP gray whales from Granite Canyon, CA, a recent integrated population modeling analysis indicated that fluctuations in the gray whale abundance was likely associated with availability of benthic prey in the Arctic region ([@stewart_boom-bust_2023]). The time series suggests that observed fluctuations are common. The observed declines in abundance might represent short-term events that had not resulted in any detectable longer-term impacts on the population. That is, despite occasional declines in abundance since the time-series of data began in 1967, the population continues to fluctuate (Figure \@ref(fig:Figure-nhats-v1)). Given the rapid changes in ocean environment, especially in the Arctic region where gray whales forage, continuous monitoring is essential to determine the degree of fluctuations in the future. NOAA/NMFS plan to closely monitor the population with regular surveys to estimate abundance, calf production and body condition of gray whales. The results of these research efforts will continue to provide the best scientific information available regarding the status of the population.
 
 ### Migration phenology {.unnumbered}
 
