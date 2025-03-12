@@ -22,15 +22,15 @@ This document describes how data from the Granite Canyon survey are used to crea
 
 Data are extracted and converted into an object that can be used in WinBUGS using Extract_Data_All_v2.Rmd. The document describes the steps. The data extraction method was updated from methods of John Durban (v.0) and Josh Stewart (v.1). The discrepancies in raw and extracted data are described in detail (GC Data Extraction Update.Rmd). In the first chunk of Extract_Data_All_v2.Rmd, output directory (out.dir), the year for which data are extracted (YEAR, the directory name that contains the data needs to be the year), and the duration of minimum shift (grace_min) need to be adjusted. Output objects are stored in the "RData" subdirectory under the project. If it does not exist, an error may return. 
 
-All files in "Data/'YEAR'/ are used to create the input object, where 'YEAR' is a four-digit year. Beware that if there are duplicated files, they are used as independent files.
+All files in "Data/'YEAR'/ are used to create the input object, where 'YEAR' is a four-digit year. PLease be aware that if there are duplicated files, they are used as independent files.
 
 If debugging of the script is necessary, you may turn off the output saving option (save.output) to 'FALSE'. 
 
-When running this script the following warning message will return from the "get.data" function (this is found in Granite_Canyon_Counts_fcns.R): Warning: "NAs introduced by coercion". This is expected. These are results of as.numeric() for the line numbers, where some lines may be non-numeric text, e.g., "Edited" and other text. If there were days without any effort, do not create an edited data file. These "empty" files will return errors. 
+When running this script (Extract_Data_All_v2.Rmd), the following warning message will return from the "get.data" function (this is found in Granite_Canyon_Counts_fcns.R): Warning: "NAs introduced by coercion". This is expected. These are results of as.numeric() for the line numbers, where some lines may be non-numeric text, e.g., "Edited" and other text. If there were days without any effort, do not create an edited data file. These "empty" files will return errors. 
 
-You may want to run this script a few times with differing "grace_min" values, e.g., 80, 60, and 5. The output files will be found in the output directory name defined in the script. The file name convention is out_YEAR_minMM_Tomo_v2.rds, where YEAR is the specified year and MM is the minimum survey duration per shift. 
+You may want to run this script a few times with differing "grace_min" values, e.g., 80, 60, and 5. The output files will be found in the output directory name defined in the script. The file name convention is out_YEAR_minMM_Tomo_v2.rds, where YEAR is the specified year and MM is the minimum survey duration per shift. "Tomo_v2" refers to the latest extraction algorithm version.
 
-Observer lists are updated annually. In the data2WinBUGS_input function, the observer list from the previous survey is used to update the current year's observer list. 
+Observer lists are updated annually. In the data2WinBUGS_input function (found in Granite_Canyon_Counts_fcns.R), the observer list from the previous survey is used to update the current year's observer list. 
 
 Extracted data from previous years should be copied into the same directory from the previous year's analysis. Alternatively, data can be re-extracted for all years. 
 
@@ -58,6 +58,9 @@ MCMCparams <- list(n.iter = 85000,
                    n.burnin = 50000,
                    n.chains = 5)
 
+WinBUGS may (inevitable) return some errors. I have encountered many and compiled them with solutions that worked for me. This list can be found in 'WinBUGS errors and fixes.txt.' 
 
 ### Report
+Once WinBUGS has run successfully, a technical memorandum can be produced using Markdown. I have markdown files for the 2021/2022, 2022/2023, 2023/2024, and 2024/2025 seasons. I suggest using the 2025 report as I changed variable names so that they are not year-specific. These changes will hopefully make the report creation process simpler and less prone to errors. Please note that some manual edits are necessary, e.g., citations, inserting page numbers, etc.
+
 
