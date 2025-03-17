@@ -1,0 +1,15 @@
+001 B	02/05/2024	14:14:47
+002 P	02/05/2024	14:14:48	AMF	AFH	N
+003 V	02/05/2024	14:14:48	4	4
+006 C	02/05/2024	14:17:03	Late start due to wind,rain,and teams recovery from nightmare trip from San Diego!
+007 S	02/05/2024	14:38:15	1	267	0.5	4.5	3	ANF	AFH	4	4		South
+008 S	02/05/2024	14:49:26	2	235	0.71	3	2	ANF	AFH	4	4		South
+009 S	02/05/2024	14:50:25	1	267	0.5	4.5	3	ANF	AFH	4	4		South
+010 S	02/05/2024	14:58:28	3	261	0.5	4.5	1	ANF	AFH	4	4		South
+011 S	02/05/2024	15:50:25	4	280	0.83	2.5	1	ANF	AFH	4	4		South
+012 P	02/05/2024	15:50:36	MSL	ANF	N
+013 V	02/05/2024	15:50:36	4	4
+014 S	02/05/2024	16:00:20	5	255	0.96	2.1	1	MSL	ANF	4	4		South
+015 S	02/05/2024	16:12:26	6	269	0.92	2.2	1	MSL	ANF	4	4		South
+016 S	02/05/2024	16:12:54	6	262	0.86	2.4	1	MSL	ANF	4	4		South
+017 E	02/05/2024	16:30:21	shift changes not at exact times due fully new team orientation and training of new obsever and other problems caused by the site having no city power, but being on a generator
