@@ -62,7 +62,7 @@ MCMCparams <- list(n.iter = 85000,
                    n.burnin = 50000,
                    n.chains = 5)
 
-I have also ran the model with n.iter = 1000000. Every once in a while, errors were returned when running this many steps. The reason for it was unknown. I have never had any problems with n.iter = 85000.
+I have also ran the model with n.iter = 100000. Every once in a while, errors were returned when running 100000 steps. The reason for it was unknown. I have never had any problems with n.iter = 85000.
 
 ### Report
 
@@ -72,4 +72,6 @@ The report creation process requires making and saving plots. The necessary plot
 
 Figures may be replaced with a higher resolution, or bigger (or both), versions. 
 
-The markdown file uses the Marine Ecology Progress Series style references. In order for this to work, you will have to have a "csl" (Citation Style Language) file specifying the style. This can be 
+The markdown file uses the Marine Ecology Progress Series style references. In order for this to work, you will have to have a "csl" (Citation Style Language) file specifying the style. These files can be found and downloaded from this GitHub repository (https://github.com/citation-style-language/styles). In order to create automatic citations, I use Zotero library. The Posit website (https://posit.co/blog/rstudio-1-4-preview-citations/) explains how this can be done (relatively) easily. 
+
+
