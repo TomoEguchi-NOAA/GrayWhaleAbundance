@@ -187,7 +187,7 @@ Jags_Richards_Since2010_fcn <- function(min.dur, ver, years, data.dir, jags.para
 # 
 # Requires to provide the minimum watch duration, a version of the model (see 
 # Jags models for details and differences - they are
-# different in which parameters of Richards' funcion are time specific),
+# different in which parameters of Richards' function are time specific),
 # years for which the model is fit, a directory name where data are stored,
 # parameters to be monitored, and MCMC parameters as a list.
 # 
@@ -219,10 +219,10 @@ Jags_Richards_Since2010_fcn <- function(min.dur, ver, years, data.dir, jags.para
 #                     jags.params = jags.params, 
 #                     MCMC.params = MCMC.params)     
 #                     
-NoBUGS_Richards_fcn <- function(min.dur, ver, years, data.dir, jags.params, MCMC.params){
+NoBUGS_Richards_fcn <- function(min.dur, ver, years, data.dir, jags.params, MCMC.params, Run.date = Sys.Date()){
   print("Starting NoBUGS_Richards_fcn")
   
-  Run.date <- Sys.Date()
+  #Run.date <- Sys.Date()
   model.name <- paste0("Richards_pois_bino_", ver) 
   jags.model <- paste0("models/model_", model.name, ".txt")
   
@@ -230,41 +230,49 @@ NoBUGS_Richards_fcn <- function(min.dur, ver, years, data.dir, jags.params, MCMC
                           "_NoBUGS_",
                           Run.date, ".rds")
   
-  jags.input.list <- AllData2JagsInput_NoBUGS(min.dur, years = years, data.dir)                        
-
-  jags.input <- list(jags.data = jags.input.list$jags.data,
-                     min.dur = min.dur, 
-                     jags.input.Laake = jags.input.list$jags.input.Laake,
-                     jags.input.new = jags.input.list$jags.input.new,
-                     data.dir = data.dir)
+  if (!file.exists(out.file.name)){
+    jags.input.list <- AllData2JagsInput_NoBUGS(min.dur, years = years, data.dir)                        
+    
+    jags.input <- list(jags.data = jags.input.list$jags.data,
+                       min.dur = min.dur, 
+                       jags.input.Laake = jags.input.list$jags.input.Laake,
+                       jags.input.new = jags.input.list$jags.input.new,
+                       data.dir = data.dir)
+    
+    Start_Time<-Sys.time()
+    
+    jm <- jagsUI::jags(jags.input.list$jags.data,
+                       inits = NULL,
+                       parameters.to.save= jags.params,
+                       model.file = jags.model,
+                       n.chains = MCMC.params$n.chains,
+                       n.burnin = MCMC.params$n.burnin,
+                       n.thin = MCMC.params$n.thin,
+                       n.iter = MCMC.params$n.samples,
+                       DIC = T,
+                       parallel=T)
+    
+    Run_Time <- Sys.time() - Start_Time
+    jm.out <- list(jm = jm,
+                   jags.input = jags.input,
+                   #start.year = all.start.year,
+                   jags.params = jags.params,
+                   jags.model = jags.model,
+                   MCMC.params = MCMC.params,
+                   Run_Time = Run_Time,
+                   Run_Date = Run.date,
+                   out.file.name = out.file.name,
+                   Sys.env = Sys.getenv())
+    
+    saveRDS(jm.out,
+            file = out.file.name)
+    
+  } else {
+    print("Previously saved results were read.")
+    jm.out <- readRDS(file = out.file.name)
+  }
   
-  Start_Time<-Sys.time()
-  
-  jm <- jagsUI::jags(jags.input.list$jags.data,
-                     inits = NULL,
-                     parameters.to.save= jags.params,
-                     model.file = jags.model,
-                     n.chains = MCMC.params$n.chains,
-                     n.burnin = MCMC.params$n.burnin,
-                     n.thin = MCMC.params$n.thin,
-                     n.iter = MCMC.params$n.samples,
-                     DIC = T,
-                     parallel=T)
-  
-  Run_Time <- Sys.time() - Start_Time
-  jm.out <- list(jm = jm,
-                 jags.input = jags.input,
-                 #start.year = all.start.year,
-                 jags.params = jags.params,
-                 jags.model = jags.model,
-                 MCMC.params = MCMC.params,
-                 Run_Time = Run_Time,
-                 Run_Date = Run.date,
-                 Sys.env = Sys.getenv())
-  
-  saveRDS(jm.out,
-          file = out.file.name)
-  
+  return(jm.out)
   
 }
 
@@ -709,6 +717,7 @@ data2WinBUGS_input <- function(data.dir, years, min.dur){
   library(tidyverse)
   
   # this file contains all necessary inputs for 2006 - 2019 from Josh Stewart
+  # We need 206/2007 and 2007/2008 data as we don't have the original data files
   data.0 <- readRDS("RData/2006-2019_GC_Formatted_Data.RDS")
   
   # e.g., 2007 refers to 2006/2007
@@ -808,7 +817,7 @@ data2WinBUGS_input <- function(data.dir, years, min.dur){
               array(NA, dim = c(max(periods) - nrow(data.0$bf), 2)))%>%
     labelled::remove_attributes("dimnames")
   
-    # A new observer list is created as new data are added. The new observer list
+  # A new observer list is created as new data are added. The new observer list
   # is saved in the Data directory. The list from the previous year is updated
   obs.list <- read.csv(file = paste0("Data/ObserverList", years[length(years)-1], ".csv"))
   
@@ -1209,7 +1218,8 @@ LaakeData2JagsInput <- function(min.dur){
     mutate(effort.min = effort * 24 * 60,
            watch.prop = effort) -> Effort.by.period
   
-  # observers
+  # observers - rather than using entries of Observer.rda, I pull out all observers
+  # from the effort objects (primary and secondary) and re-number them. 
   obs <- c(unique(Laake_PrimaryEffort$Observer),
            unique(Laake_SecondaryEffort$Observer)) %>% unique()
   
@@ -1334,7 +1344,9 @@ LaakeData2JagsInput <- function(min.dur){
 
 # Create Jags input data for all years using Laake data and WinBUGS data
 AllData2JagsInput <- function(min.dur, 
-                              WinBUGS.years, WinBUGS.n.stations, WinBUGS.out.file,
+                              WinBUGS.years, 
+                              WinBUGS.n.stations, 
+                              WinBUGS.out.file,
                               data.dir){
   library(tidyverse)
   
@@ -1356,7 +1368,8 @@ AllData2JagsInput <- function(min.dur,
   #   lapply(FUN = function(x) {tmp <- unlist(x); tmp[1]}) %>%
   #   unlist()
   
-  all.start.years <- c(Laake.start.years, Jags.input.2006$start.years)
+  all.start.years <- c(Laake.start.years, 
+                       Jags.input.2006$start.years)
   all.start.years <- all.start.years[!duplicated(all.start.years)]
   
   # Both datasets contain 2006. Take it out from the recent one.
@@ -1503,14 +1516,32 @@ data2Jags_input_NoBUGS <- function(min.dur,
   # observers
   # need to convert observer initials into numbers for all years
   # This needs to be redone... 
-  obs.list <- read.csv(file = "Data/ObserverList2023.csv")
   
-  obs.2024 <- unique(out.v2[[length(years)]]$Complete_Data$obs)
-  new.obs <- obs.2024[!c(obs.2024 %in% obs.list$obs)]
+  # A new observer list is created as new data are added. The new observer list
+  # is saved in the Data directory. The list from the previous year is updated
+  obs.list <- read.csv(file = paste0("Data/ObserverList", years[length(years)-1], ".csv"))
+  
+  obs.new <- unique(out.v2[[length(years)]]$Complete_Data$obs)
+  new.obs <- obs.new[!c(obs.new %in% obs.list$obs)]
   obs.list <- rbind(obs.list,
                     data.frame(obs = new.obs,
-                               ID = seq(max(obs.list$ID) + 1, 
+                               ID = seq(max(obs.list$ID) + 1,
                                         max(obs.list$ID) + length(new.obs))))
+
+  # If WinBUGS was run already this file exists.   
+  if (!file.exists(paste0("Data/ObserverList", max(years), ".csv")))  
+    write.csv(obs.list, 
+              file = paste0("Data/ObserverList", max(years), ".csv"),
+              row.names = FALSE)
+  
+  # obs.list <- read.csv(file = "Data/ObserverList2023.csv")
+  # 
+  # obs.2024 <- unique(out.v2[[length(years)]]$Complete_Data$obs)
+  # new.obs <- obs.2024[!c(obs.2024 %in% obs.list$obs)]
+  # obs.list <- rbind(obs.list,
+  #                   data.frame(obs = new.obs,
+  #                              ID = seq(max(obs.list$ID) + 1, 
+  #                                       max(obs.list$ID) + length(new.obs))))
   
   watch.length <- n <- day <- array(NA, dim = c(max(periods)+2, 
                                                 2, length(years)))
@@ -1637,7 +1668,7 @@ data2Jags_input_NoBUGS <- function(min.dur,
 
 # Create jags data input for all years without uring WinBUGS input
 AllData2JagsInput_NoBUGS <- function(min.dur, years, data.dir){
-  
+  library(abind)
   # this converts Laake's data into jags input
   jags.input.Laake <- LaakeData2JagsInput(min.dur)
   
@@ -1671,21 +1702,22 @@ AllData2JagsInput_NoBUGS <- function(min.dur, years, data.dir){
     mutate(ID.all = seq(1:nrow(obs.all))) %>%
     select(obs, ID.Laake, ID.new, ID.all) -> obs.all.new
   
+  No.obs.ID <- obs.all.new %>% 
+    filter(obs == "No obs") %>% 
+    select(ID.all) %>% pull()
+  
   # Replace observer IDs in each dataset with new IDs (obs.all.new$ID.all)
   jags.obs.Laake <- jags.input.Laake$jags.data$obs
   
   # Replace NAs with no observer ID
-  jags.obs.Laake[is.na(jags.obs.Laake)] <- obs.Laake[nrow(obs.Laake), "ID"]
+  jags.obs.Laake[is.na(jags.obs.Laake)] <- No.obs.ID
   
   # use "match" to swap the original observer IDs with new IDs
   # using the look up table (obs.all.new)
   # c(new, x)[match(x, c(old, x))], where x is data
   # https://stackoverflow.com/questions/16228160/multiple-replacement-in-r
-  
-  No.obs.ID <- obs.all.new %>% 
-    filter(obs == "No obs") %>% 
-    select(ID.all) %>% pull()
-  
+ 
+  # Laake observer list first
   jags.obs.Laake.new <- array(data = No.obs.ID,
                               dim = dim(jags.obs.Laake))
   
@@ -1699,6 +1731,7 @@ AllData2JagsInput_NoBUGS <- function(min.dur, years, data.dir){
                                                        x)[match(x, as.vector(obs.all.new$ID.Laake), x)], 
                                    MARGIN = 2)
   
+  # new observers next
   jags.obs.new <- jags.input.new$jags.data$obs
   
   jags.obs.new.new <- array(data = No.obs.ID,
