@@ -32,7 +32,7 @@ source("Granite_Canyon_Counts_fcns.R")
 # file names in data.dir, e.g., min85, min30. 
 WinBUGS.input <- data2WinBUGS_input(data.dir = "RData/V2.1_Feb2025",
                                     years = c(2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024, 2025),
-                                    min.dur = 30) # one of 10, 30, 85 or any other that was used in Extract_Data_All_v2.Rmd
+                                    min.dur = 60) # one of 10, 30, 85 or any other that was used in Extract_Data_All_v2.Rmd
 
 # WinBUGS.input <- data2WinBUGS_input(data.dir = "RData/V2.1_Nov2024",
 #                                     years = c(2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024),
@@ -53,10 +53,10 @@ MCMCparams <- list(n.iter = 100000, #200, #
                    n.chains = 5)
 # 
 # This set runs quickly. Good to use this set to see if data and model are correct.
-# MCMCparams <- list(n.iter = 200,
-#                    n.thin = 2,
-#                    n.burnin = 50,
-#                    n.chains = 5)
+MCMCparams <- list(n.iter = 200,
+                   n.thin = 2,
+                   n.burnin = 50,
+                   n.chains = 5)
 # 
 n.samples <- ((MCMCparams$n.iter - MCMCparams$n.burnin)/MCMCparams$n.thin)*MCMCparams$n.chains
 
@@ -65,7 +65,7 @@ options(scipen = 999)  # to avoid having 1e+05 for 100000
 out.file.name <- paste0("RData/WinBUGS_", min(WinBUGS.input$all.years), "to",
                         max(WinBUGS.input$all.years), "_v2_min", WinBUGS.input$min.dur,
                         "_", MCMCparams$n.iter, "_", Run_Date, ".rds")
-options(scipen = 0)
+
 ```
 
 Set up WinBUGS and run if it hasn't been run today.:
@@ -92,7 +92,7 @@ if (!file.exists(out.file.name)){
                    n.iter = MCMCparams$n.iter, 
                    n.burnin = MCMCparams$n.burnin, 
                    n.thin = MCMCparams$n.thin,
-                   debug = F,
+                   debug = T,
                    bugs.directory = WinBUGS.dir,
                    DIC = FALSE)
   
@@ -110,7 +110,9 @@ if (!file.exists(out.file.name)){
   # minimum observation duration. That changed the size of data arrays, which shouldn't be an issue. 
   
   # It turned out a new observer (JSD) was introduced when a shorter minimum was used to filter
-  # observation period. "JSD" was only found in 2020 (200109_080043). A strange thing happened for that day.
+  # observation period. "JSD" was only found in 2020 (200109_080043). Looking at data files for that week,
+  # I suspect "JSD" was a typographic error of "JDS." I changed the data file.  
+  # A strange thing happened for that day.
   # During the 0800 shift, JSD/JWG changed to SJC/JDS on 0900, then the shift continued until 0930. The new
   # cutoff time (30 min) picked up the first (1 hr) and the second (30 min) as separate observation periods.
 
@@ -326,7 +328,7 @@ ggplot(data = abundance.df) +
 #median(apply(exp(sp[,,4]),1,sum))
 
 #write_csv(abundance.df, file = Nhats.filename)
-
+options(scipen = 0)
 ```
 
 ```{r}
