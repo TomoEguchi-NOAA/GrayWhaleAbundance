@@ -20,7 +20,7 @@ library(tidyverse)
 library(lubridate)
 source("Granite_Canyon_Counts_fcns.R")
 
-save.output <- F #TRUE
+save.output <- T #TRUE
 # https://statisticsglobe.com/dplyr-message-summarise-has-grouped-output-r
 options(dplyr.summarise.inform = FALSE)
 
@@ -29,18 +29,18 @@ options(dplyr.summarise.inform = FALSE)
 out.dir <- "RData/V2.1_Feb2025"
 if (!dir.exists(out.dir)) dir.create(out.dir)
 
-# YEAR should be one of 2010, 2011, 2015, 2016, 2020, 2022, 2023 (and beyond)
+# YEAR should be one of 2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024, 2025 (and beyond)
 # They are the end year of the season, which is the season name. For example, the 
 # 2020/2021 season is called the 2021 season.
 
-YEAR <- 2024 #10 #Enter the year of the data files
+YEAR <- 2015 #10 #Enter the year of the data files
 
 # For 2009/2010 (maybe in the previous years too but I don't have any of those files),
 # Time is entered in decimal hours, not hh:mm:ss. So, that needs to be accommodated in
 # data extraction code. 2022-10-05
 
 shift_dur_min <- 90   # 90 minutes
-grace_min <- 80#5 # 60 #       # this makes it minimum of shift_dur_min - grace_min
+grace_min <- 30 #80#5 # 60 #       # this makes it minimum of shift_dur_min - grace_min
 
 # For Mar 2023 analysis, I changed this to minimum duration of 30 minutes
 max_dur <- shift_dur_min + 5
