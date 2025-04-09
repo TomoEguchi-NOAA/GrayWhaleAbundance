@@ -731,6 +731,8 @@ data2WinBUGS_input <- function(data.dir, years, min.dur){
                                                     "_min", min.dur, 
                                                     "_Tomo_v2.rds")))
   
+  all.Final_Data <- lapply(out.v2, FUN = function(x) x$Final_Data) 
+  
   begin.primary <- lapply(out.v2, FUN = function(x){
     begin <- x$Final_Data %>%
       filter(station == "P") %>%
@@ -1109,7 +1111,8 @@ data2WinBUGS_input <- function(data.dir, years, min.dur){
                           inits = BUGS.inits,
                           all.years = all.years,
                           seasons = seasons,
-                          min.dur = min.dur))  
+                          min.dur = min.dur,
+                          Final_Data = all.Final_Data))  
 }
 
 # Create Jags input for Laake's data.
