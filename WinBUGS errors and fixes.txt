@@ -52,3 +52,9 @@ This problem goes away when N, N.com, and N.sp are removed from the inits functi
   # ERROR: NIL dereference (read). 
   # This was caused by having lowercase observer initials in the 2010 data. That was fixed in the extraction
   # function get.shift. 
+  
+# 2025-04-09
+# made use of undefined node obs
+There was a NA in the fifth column (2015) of the obs array (132nd row). Observer SLC was found when minimum
+shift duration was less than 85 minutes (GW150130_072423 EDITED TE.dat). SLC seems to be a typographic error
+of SJC. I don't know why this was not an issue when the minimum shift duration was longer... 
