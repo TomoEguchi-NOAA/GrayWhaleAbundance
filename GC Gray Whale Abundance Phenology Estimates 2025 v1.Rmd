@@ -28,9 +28,9 @@ library(knitr)
 YEAR <- 2025
 
 # File names for bringing in data and results:
-N.hats.new.filename <- "Data/WinBUGS_abundance_2007to2025_v2_min85_100000_2025-02-25.csv"
-data.new.filename <- "RData/V2.1_Feb2025/out_2025_min85_Tomo_v2.rds"
-WinBUGS.results.filename <- "RData/WinBUGS_2007to2025_v2_min85_100000_2025-02-25.rds"
+N.hats.new.filename <- "Data/WinBUGS_abundance_2007to2025_v2_min60_100000_2025-04-11.csv"
+data.new.filename <- "RData/V2.1_Feb2025/out_2025_min60_Tomo_v2.rds"
+WinBUGS.results.filename <- "RData/WinBUGS_2007to2025_v2_min60_100000_2025-04-11.rds"
 
 # knit_hooks$set(inline = function(x) {
 #   prettyNum(x, big.mark = ",")
@@ -341,7 +341,7 @@ p.Nhat.new <- ggplot(data = all.years.new.df) +
             aes(x = Season, y = 22500, width = 1, height = 35000),
             fill = "gold", alpha = 0.3) +
   scale_color_discrete(breaks = c("Durban", "Laake")) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 9),
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8),
         legend.position = "top") +
   xlab("Season") +
   ylab("Abundance")
