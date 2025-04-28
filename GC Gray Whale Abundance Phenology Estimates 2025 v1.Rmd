@@ -109,7 +109,8 @@ N.hats.new <- read_csv(file = N.hats.new.filename,
                        FUN = function(x) x[2]) %>% 
            unlist() %>% 
            as.numeric(),
-         Method = "Durban")
+         Method = "Durban",
+         SE = total.mean * total.CV/100)
 
 # From Durban et al. 2015, Fig 1 (J. Cetacean Res. Manage. 15:61-68)
 Durban.2015 <- data.frame(Year = c(2007, 2008, 2010, 2011),
@@ -117,6 +118,7 @@ Durban.2015 <- data.frame(Year = c(2007, 2008, 2010, 2011),
                           Nhat = c(20750, 17820, 21210, 20990),
                           LCL = c(18860, 16150, 19420, 19230),
                           UCL = c(23320, 19920, 23250, 22900),
+                          SE = NA,
                           Method = "Durban")
 
 # From Eguchi et al. 2023, Table 1 (NOAA Tech Memo NMFS-SWFSC-680)
@@ -133,6 +135,7 @@ Eguchi.2024 <- data.frame(Year = c(2015, 2016, 2020, 2022, 2023, 2024),
                           Nhat = c(23440, 27450, 20630, 17430, 14530, 19260),
                           LCL = c(21264.8, 24884.8, 18840.0, 15800.0, 13234.8, 17400.0),
                           UCL = c(26055.8, 30180.0, 22710.5, 19220.0, 15960.0, 21300.5),
+                          SE = NA,
                           Method = "Durban")
 
 # UMEs
@@ -300,21 +303,22 @@ In order to examine possible changes in the median migration dates over time, se
 #estimates.2023 <- read_csv(file = "Data/abundance_2023_85min.csv")
 
 Laake.estimates %>%
-  dplyr::select(Year, Season, Nhat, LCL, UCL) %>%
+  dplyr::select(Year, Season, Nhat, LCL, UCL, SE) %>%
   mutate(Method = "Laake") %>%
   rbind(Durban.2015) %>%
   rbind(Eguchi.2024) -> all.estimates.old
 
 Laake.estimates %>%
-  dplyr::select(Year, Season, Nhat, LCL, UCL) %>%
+  dplyr::select(Year, Season, Nhat, LCL, UCL, SE) %>%
   mutate(Method = "Laake") %>%
   rbind(N.hats.new %>% 
-          dplyr::select(Year, Season, total.median, total.LCL, total.UCL) %>%
+          dplyr::select(Year, Season, total.median, total.LCL, total.UCL, SE) %>%
           transmute(Year = Year,
                     Season = Season,
                     Nhat = total.median,
                     LCL = total.LCL,
                     UCL = total.UCL,
+                    SE = SE,
                     Method = "Durban")) -> all.estimates.new
 
 all.estimates.new$Nhat.2024 <- c(all.estimates.old$Nhat, NA)
