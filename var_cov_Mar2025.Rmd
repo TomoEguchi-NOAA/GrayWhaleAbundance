@@ -33,7 +33,7 @@ seasons <- c("2006/2007", "2007/2008", "2009/2010", "2010/2011",
 x <- length(seasons)
 
 # Bring in the WinBUGS output 
-BUGS.output <- readRDS("RData/WinBUGS_2007to2025_v2_min85_100000_2025-02-25.rds")
+BUGS.output <- readRDS("RData/WinBUGS_2007to2025_v2_min60_100000_2025-04-11.rds")
 
 # Extract posteriors for "Corrected.Est":
 post.matrix <- BUGS.output$BUGS.out$sims.matrix

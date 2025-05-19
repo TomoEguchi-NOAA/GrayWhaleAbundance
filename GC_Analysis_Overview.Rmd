@@ -75,3 +75,6 @@ Figures may be replaced with a higher resolution, or bigger (or both), versions.
 The markdown file uses the Marine Ecology Progress Series style references. In order for this to work, you will have to have a "csl" (Citation Style Language) file specifying the style. These files can be found and downloaded from this GitHub repository (https://github.com/citation-style-language/styles). In order to create automatic citations, I use Zotero library. The Posit website (https://posit.co/blog/rstudio-1-4-preview-citations/) explains how this can be done (relatively) easily. 
 
 
+### Variance-Covariance matrix and abundance table
+
+To create the var-cov matrix for the latest abundance estimates, an R markdown file from a previous year should be edited, e.g., var_cov_Mar2025.Rmd. The second chunk should be edited to include the most recent data and output from WinBUGS Ver2.Rmd. When that script (var_cov_...). It will create three files means_2007_YYYY.dat, means_log_2007_YYYY.dat, and var_cov_2007_YYYY.dat, where YYYY is the most recent season. 
