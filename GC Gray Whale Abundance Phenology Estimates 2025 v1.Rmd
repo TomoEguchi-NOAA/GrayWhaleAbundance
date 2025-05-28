@@ -14,7 +14,7 @@ csl: marine-ecology-progress-series.csl
 ```{r setup, include=FALSE}
 rm(list = ls())
 knitr::opts_chunk$set(echo = TRUE)
-save.fig <- T
+save.fig <- F
 
 source("Granite_Canyon_Counts_fcns.R")
 library(tidyverse)
