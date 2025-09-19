@@ -1,6 +1,14 @@
 
 # define some functions
 
+# Compute new Rhat statistic of Vehtari et al. (2021)
+new.R.hat <- function(jm, params){
+  library(posterior)
+  samples <- jm$sims.list[params]
+  draws <- as_draws_array(samples)
+  new.r.hat <- rhat(draws)
+}
+
 # retrieve BUGS results
 get.results.BUGS <- function(BUGS.file.name){
   out <- readRDS(paste0("RData/", BUGS.file.name))

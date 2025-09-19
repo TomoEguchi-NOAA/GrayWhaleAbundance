@@ -53,10 +53,10 @@ MCMCparams <- list(n.iter = 100000, #200, #
                    n.chains = 5)
 # 
 # This set runs quickly. Good to use this set to see if data and model are correct.
-MCMCparams <- list(n.iter = 200,
-                   n.thin = 2,
-                   n.burnin = 50,
-                   n.chains = 5)
+# MCMCparams <- list(n.iter = 200,
+#                    n.thin = 2,
+#                    n.burnin = 50,
+#                    n.chains = 5)
 # 
 n.samples <- ((MCMCparams$n.iter - MCMCparams$n.burnin)/MCMCparams$n.thin)*MCMCparams$n.chains
 
@@ -77,7 +77,8 @@ parameters <- c("lambda","OBS.RF","OBS.Switch",
                 "VS.Fixed","mean.prob", 
                 "Corrected.Est","Raw.Est","z",
                 "com","sp","Daily.Est","mean.beta",
-                "beta.sigma","beta","beta.sp","b.sp","sd.b.sp")
+                "beta.sigma","beta","beta.sp","b.sp","sd.b.sp",
+                "obs.prob")
 
 if (!file.exists(out.file.name)){
  
