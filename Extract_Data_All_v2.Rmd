@@ -26,21 +26,21 @@ options(dplyr.summarise.inform = FALSE)
 
 # I forget why I have .1 convention in the subdirectory name. But, I decided to keep it.
 #out.dir <- "RData/V2.1_Nov2024"
-out.dir <- "RData/V2.1_Feb2025"
+out.dir <- "RData/V2.1_Feb2026"
 if (!dir.exists(out.dir)) dir.create(out.dir)
 
 # YEAR should be one of 2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024, 2025 (and beyond)
 # They are the end year of the season, which is the season name. For example, the 
 # 2020/2021 season is called the 2021 season.
 
-YEAR <- 2015 #10 #Enter the year of the data files
+YEAR <- 2026 #10 #Enter the year of the data files
 
 # For 2009/2010 (maybe in the previous years too but I don't have any of those files),
 # Time is entered in decimal hours, not hh:mm:ss. So, that needs to be accommodated in
 # data extraction code. 2022-10-05
 
 shift_dur_min <- 90   # 90 minutes
-grace_min <- 30 #80#5 # 60 #       # this makes it minimum of shift_dur_min - grace_min
+grace_min <- 60 # 30 #80#5 #       # this makes it minimum of shift_dur_min - grace_min
 
 # For Mar 2023 analysis, I changed this to minimum duration of 30 minutes
 max_dur <- shift_dur_min + 5
@@ -51,6 +51,20 @@ min_dur <- shift_dur_min - grace_min
 
 
 ```{r}
+
+# 2026-02-18
+# Warning in left_join(., Effort4Laake_1 %>% dplyr::select(key, pphr), by = "key") :
+#   Detected an unexpected many-to-many relationship between `x` and `y`.
+# ℹ Row 531 of `x` matches multiple rows in `y`.
+# ℹ Row 5 of `y` matches multiple rows in `x`.
+# ℹ If a many-to-many relationship is expected, set `relationship = "many-to-many"` to silence this
+#   warning.
+#
+# This problem was from differences in observers (defined with a "P" option) and actual
+# sighting observers. Data files were corrected to match sighting observers to those
+# who were defined with a "P" option. 
+  
+
 
 if (YEAR == 2023){
   FILES <- list.files(path = paste0("Data/", YEAR, "/"),
@@ -266,6 +280,13 @@ Effort4Laake_1 %>%
 # Laake's analysis. So, I move the variable.
 # Warning: Detected an unexpected many-to-many relationship between `x` and `y`.
 # Check this... 2024-02-23
+duplicated.keys <- unique(Effort4Laake_1$key[duplicated(Effort4Laake_1$key)])
+if (length(duplicated.keys) > 0){
+  dupes.keys.df <- data.frame(key = duplicated.keys)
+  dupes.keys.df %>%
+    left_join(Effort4Laake_1, by = "key") -> duplicated.df
+}
+
 Data4Laake_1 %>%
   left_join(Effort4Laake_1 %>%
               dplyr::select(key, pphr), by = "key") -> Data4Laake_1
