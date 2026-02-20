@@ -31,7 +31,8 @@ source("Granite_Canyon_Counts_fcns.R")
 # min.dur is the minimum duration of a observation period - this is in the
 # file names in data.dir, e.g., min85, min30. 
 WinBUGS.input <- data2WinBUGS_input(data.dir = "RData/V2.1_Feb2026",
-                                    years = c(2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024, 2025, 2026),
+                                    years = c(2010, 2011, 2015, 2016, 2020, 
+                                              2022, 2023, 2024, 2025, 2026),
                                     min.dur = 60) # one of 10, 30, 85 or any other that was used in Extract_Data_All_v2.Rmd
 
 # WinBUGS.input <- data2WinBUGS_input(data.dir = "RData/V2.1_Nov2024",
