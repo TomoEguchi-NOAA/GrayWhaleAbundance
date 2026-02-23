@@ -442,6 +442,7 @@ data2WinBUGS_input <- function(data.dir, years, min.dur){
                           all.years = all.years,
                           seasons = seasons,
                           min.dur = min.dur,
+                          All_Data = out.v2,
                           Final_Data = all.Final_Data))  
 }
 

@@ -20,27 +20,29 @@ library(tidyverse)
 library(lubridate)
 source("Granite_Canyon_Counts_fcns.R")
 
-save.output <- T #TRUE
+YEAR <- 2026 #10 #Enter the year of the data files
+
+save.output <- T #F #TRUE
 # https://statisticsglobe.com/dplyr-message-summarise-has-grouped-output-r
 options(dplyr.summarise.inform = FALSE)
 
 # I forget why I have .1 convention in the subdirectory name. But, I decided to keep it.
 #out.dir <- "RData/V2.1_Nov2024"
-out.dir <- "RData/V2.1_Feb2026"
+out.dir <- paste0("RData/V2.1_Feb", YEAR)
 if (!dir.exists(out.dir)) dir.create(out.dir)
 
 # YEAR should be one of 2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024, 2025 (and beyond)
 # They are the end year of the season, which is the season name. For example, the 
 # 2020/2021 season is called the 2021 season.
 
-YEAR <- 2026 #10 #Enter the year of the data files
+
 
 # For 2009/2010 (maybe in the previous years too but I don't have any of those files),
 # Time is entered in decimal hours, not hh:mm:ss. So, that needs to be accommodated in
 # data extraction code. 2022-10-05
 
 shift_dur_min <- 90   # 90 minutes
-grace_min <- 60 # 30 #80#5 #       # this makes it minimum of shift_dur_min - grace_min
+grace_min <- 30 #60 # 80#5 #       # this makes it minimum of shift_dur_min - grace_min
 
 # For Mar 2023 analysis, I changed this to minimum duration of 30 minutes
 max_dur <- shift_dur_min + 5
@@ -50,7 +52,7 @@ min_dur <- shift_dur_min - grace_min
 ```
 
 
-```{r}
+```{r warning=FALSE}
 
 # 2026-02-18
 # Warning in left_join(., Effort4Laake_1 %>% dplyr::select(key, pphr), by = "key") :
@@ -63,9 +65,6 @@ min_dur <- shift_dur_min - grace_min
 # This problem was from differences in observers (defined with a "P" option) and actual
 # sighting observers. Data files were corrected to match sighting observers to those
 # who were defined with a "P" option. 
-  
-
-
 if (YEAR == 2023){
   FILES <- list.files(path = paste0("Data/", YEAR, "/"),
                       pattern = "EditedGW")
@@ -124,7 +123,7 @@ data.all <- do.call("rbind", data.list)
 
 unique.dates <- unique(data.all$V3)
 n.stations <- vector(mode = "numeric", length = length(unique.dates))
-c <-2
+c <-27
 for (c in 1:length(unique.dates)){
   #print(paste0("Date = ", c))
   data.all %>% 

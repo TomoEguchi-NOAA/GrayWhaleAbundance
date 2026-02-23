@@ -11,10 +11,13 @@ bibliography: reference.bib
 csl: marine-ecology-progress-series.csl  
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE}
 rm(list = ls())
 knitr::opts_chunk$set(echo = TRUE)
 save.fig <- T
+min.dur <- 60
+WinBUGS.iter <- 100000
+WinBUGS.RunDate <- "2026-02-18"
 
 source("Granite_Canyon_Counts_fcns.R")
 library(tidyverse)
@@ -28,9 +31,11 @@ library(knitr)
 YEAR <- 2026
 
 # File names for bringing in data and results:
-N.hats.new.filename <- "Data/WinBUGS_abundance_2007to2026_v2_min60_100000_2026-02-18.csv"
-data.new.filename <- "RData/V2.1_Feb2026/out_2026_min60_Tomo_v2.rds"
-WinBUGS.results.filename <- "RData/WinBUGS_2007to2026_v2_min60_100000_2026-02-18.rds"
+N.hats.new.filename <- paste0("Data/WinBUGS_abundance_2007to2026_v2_min", min.dur,
+                              "_", WinBUGS.iter, "_", WinBUGS.RunDate, ".csv")
+data.new.filename <- paste0("RData/V2.1_Feb2026/out_2026_min", min.dur, "_Tomo_v2.rds")
+WinBUGS.results.filename <- paste0("RData/WinBUGS_2007to2026_v2_min", min.dur, "_", 
+                                   WinBUGS.iter, "_", WinBUGS.RunDate, ".rds")
 
 # knit_hooks$set(inline = function(x) {
 #   prettyNum(x, big.mark = ",")
@@ -148,6 +153,10 @@ UMEs <- data.frame(Season = c("1999/2000", "2000/2001",
 end.year <- 2026
 all.years <- data.frame(Year = seq(from = min(Laake.estimates$Year), 
                                    to = end.year))
+
+# GEt the WinBUGS results
+WinBUGS.results <- readRDS(WinBUGS.results.filename)
+n.array <- WinBUGS.results$BUGS.input$data$n
 
 # Observer list gets updated as new observers are added. 
 x <- length(seasons)
@@ -384,7 +393,6 @@ data.new$Data_Out %>%
 # Get the output from WinBUGS run. I use the version 2 output results
 # because V1 had some errors for the past years.  
 
-WinBUGS.results <- readRDS(WinBUGS.results.filename)
 Nhat.new <- WinBUGS.results$BUGS.out$mean$Corrected.Est[x] 
 SD.Nhat.new <- WinBUGS.results$BUGS.out$sd$Corrected.Est[x] 
 CV.Nhat.new <- SD.Nhat.new/Nhat.new
