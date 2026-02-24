@@ -1049,13 +1049,15 @@ get.shift <- function(YEAR, data, i){
   for (k in 1:max(key.num)){
     tmp.1 <- data.shift %>%
       filter(key == k) %>%
-      summarise(time = first(begin)) %>%
+      summarise(time = first(begin),
+                .groups = "drop") %>%
       pull(time) %>% as.numeric()
     
     if (k < max(key.num)){
       tmp.2 <- data.shift %>%
         filter(key == (k + 1)) %>%
-        summarise(time = first(begin)) %>%
+        summarise(time = first(begin),
+                  .groups = "drop") %>%
         pull(time) %>% as.numeric()
       
     } else {
@@ -1082,7 +1084,8 @@ get.shift <- function(YEAR, data, i){
         group_by(V5) %>% #group by the whale group number
         dplyr::select(V5, V9) %>%
         #summarize(N = max(as.numeric(V9), na.rm = T)) %>% 
-        summarize(N = last(as.numeric(V9))) %>% 
+        summarize(N = last(as.numeric(V9)),
+                  .groups = "drop") %>% 
         dplyr::select(N)  %>% sum()
       npods <- length(unique(sub.data$V5))
       
@@ -1101,7 +1104,8 @@ get.shift <- function(YEAR, data, i){
         group_by(V5) %>% #group by the whale group number
         dplyr::select(V5, V9) %>%
         #summarize(N = max(as.numeric(V9), na.rm = T)) %>% 
-        summarize(N = last(as.numeric(V9))) %>% 
+        summarize(N = last(as.numeric(V9)),
+                  .groups = "drop") %>% 
         dplyr::select(N)  %>% sum()
       npods <- length(unique(sub.data$V5))
       
@@ -1159,7 +1163,8 @@ get.shift <- function(YEAR, data, i){
                 end = first(end),
                 time = first(time),
                 effort = first(effort),
-                Shift = first(Shift)) -> sub.data.shift
+                Shift = first(Shift),
+                .groups = "drop") -> sub.data.shift
     
     # effort summary
     # Rare occasions when observer changes within a shift... this needs to be
@@ -1180,7 +1185,8 @@ get.shift <- function(YEAR, data, i){
                 end = first(end),
                 time = first(time),
                 effort = first(effort),
-                Shift = first(Shift)) -> data.shift.effort
+                Shift = first(Shift),
+                .groups = "drop") -> data.shift.effort
     
     
     
@@ -1229,7 +1235,8 @@ get.shift <- function(YEAR, data, i){
                 end = first(end),
                 time = first(time),
                 effort = first(effort),
-                Shift = first(Shift)) -> data.shift.effort
+                Shift = first(Shift),
+                .groups = "drop") -> data.shift.effort
     
   }
   
