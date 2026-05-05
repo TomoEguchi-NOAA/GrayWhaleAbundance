@@ -19,7 +19,7 @@ min.dur <- 60
 WinBUGS.iter <- 100000
 WinBUGS.RunDate <- "2026-02-20"
 
-source("Granite_Canyon_Counts_fcns.R")
+source("GrayWhaleAbundace_fcns.R")
 library(tidyverse)
 library(lubridate)
 library(flextable)

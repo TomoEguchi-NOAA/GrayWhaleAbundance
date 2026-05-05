@@ -18,7 +18,7 @@ The station information needs to be added. The data files that I have don't have
 rm(list=ls())
 library(tidyverse)
 library(lubridate)
-source("Granite_Canyon_Counts_fcns.R")
+source("GrayWhaleAbundace_fcns.R")
 
 YEAR <- 2026 #10 #Enter the year of the data files
 

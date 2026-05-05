@@ -16,7 +16,7 @@ rm(list = ls())
 knitr::opts_chunk$set(echo = TRUE)
 save.fig <- T
 
-source("Granite_Canyon_Counts_fcns.R")
+source("GrayWhaleAbundace_fcns.R")
 library(tidyverse)
 library(lubridate)
 library(flextable)

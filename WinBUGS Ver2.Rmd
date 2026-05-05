@@ -22,7 +22,7 @@ library(tidyverse)
 
 WinBUGS.dir <- paste0(Sys.getenv("HOME"), "/WinBUGS14")
 
-source("Granite_Canyon_Counts_fcns.R")
+source("GrayWhaleAbundace_fcns.R")
 
 # data.dir refers to the output directory of Extract_Data_All_v2.Rmd
 # years in this function refers to the years for which raw data were available

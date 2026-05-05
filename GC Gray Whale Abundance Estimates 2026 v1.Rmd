@@ -19,7 +19,7 @@ min.dur <- 60
 WinBUGS.iter <- 100000
 WinBUGS.RunDate <- "2026-02-20"
 
-source("Granite_Canyon_Counts_fcns.R")
+source("GrayWhaleAbundace_fcns.R")
 library(tidyverse)
 library(lubridate)
 library(flextable)
@@ -207,23 +207,25 @@ p.1 <- ggplot(whale.groups.daily.df) +
 
 ## Introduction {.unnumbered}
 
-The Southwest Fisheries Science Center (SWFSC) consistently monitors the abundance of eastern North Pacific (ENP) gray whales (*Eschrichtius robustus*) through shore-based surveys. These visual surveys, conducted off central California between December and February during the whales' southward migration, contribute to a long-term time series of abundance estimates that began in 1967 (Laake et al. (2012)).
+The Southwest Fisheries Science Center (SWFSC) consistently monitors the abundance of eastern North Pacific (ENP) gray whales (*Eschrichtius robustus*) through shore-based surveys. These visual surveys, conducted off central California between December and February during the whales' southward migration, contribute to a long-term time series of abundance estimates that began in 1967 (Reilly et al. 1983, Laake et al. 2012).
 
-The abundance of ENP gray whales showed an increasing trend until the 2015/2016 season. However, subsequent estimates indicated a significant decline, dropping from 26,960 whales (95% CI = 24,420-29,830) in 2015/2016 to 14,526 whales (95% CI = 13,194 - 16,040) in 2022/2023 (Eguchi et al. 2023a). While the 2022/2023 estimate remained higher than the 1967 baseline (13,426 whales, CV = 0.094, Laake et al. 2012), this consecutive decline raised concerns about the population's status.
+The abundance of ENP gray whales showed a generally increasing trend until the 2015/2016 season. However, subsequent estimates indicated a significant decline, dropping from 26,960 whales (95% CI = 24,420-29,830) in 2015/2016 to 14,526 whales (95% CI = 13,194 - 16,040) in 2022/2023 (Eguchi et al. 2023a). While the 2022/2023 estimate remained higher than the 1967 baseline (13,426 whales, CV = 0.094, Laake et al. 2012), this consecutive decline raised concerns about the population's status.
 
 Data from the 2023/2024 season suggested an increase in abundance (Eguchi et al. 2024). This apparent increase, however, was deemed biologically unplausible over a two-year period, suggesting other factors were influencing the count. Compounding these concerns, the following season (2024/2025) saw another significant decline, with an estimated abundance of 12,950 whales (95% CI = 11,690-14,450, Eguchi et al. 2025), further alarming researchers about the population's health.
 
-This report will present the new abundance estimate for ENP gray whales based on the data collected during the 2025/2026 southward migration season off the central California coast.
+This report presents the new abundance estimate for ENP gray whales based on the data collected during the 2025/2026 southward migration season off the central California coast.
 
 ## Methods {.unnumbered}
 
-Data for this updated abundance estimate were collected during the `r YEAR-1`/`r YEAR` southward ENP gray whale migration. Counts were made from a shore-based watch station at Granite Canyon, California, by observer pairs rotating from a larger pool. Each survey day was split into six 90-minute shifts. As in previous analyses since 2006, only shifts with at least 60 minutes of survey effort were included. Some shifts were less than 60 minutes due to inclement weather and less-than-ideal sighting conditions (e.g., Beaufort sea state greater than 4). Sampling and analytical methods are described in a previous publication (@durban2015a.
+Data for this updated abundance estimate were collected during the `r YEAR-1`/`r YEAR` southward ENP gray whale migration. Counts were made from a shore-based watch station at Granite Canyon, California, by observer pairs rotating from a larger pool. Each survey day was split into six 90-minute shifts. As in previous analysis for the 2024/2025 season, only shifts with at least 60 minutes of survey effort were included. Some shifts were less than 60 minutes due to inclement weather and less-than-ideal sighting conditions (e.g., Beaufort sea state greater than 4). Sampling and analytical methods are described in a previous publication @durban2015a.
 
 The estimated abundance reported here was computed using the N-mixture modeling approach used previously by SWFSC for surveys conducted between the 2006/2007 and `r seasons[length(seasons)-1]` seasons (Durban et al. 2015, 2017, Stewart and Weller 2021a, Eguchi et al. 2022a, 2023a, 2024). In this approach, the sighting probability of shore-based observers was estimated by using data from replicate surveys (i.e., data collected simultaneously by two independent observer teams) that were completed in the  2009/2010 and 2010/2011 seasons and covariates that affect sighting probabilities (i.e., visibility, sea state, and observers). These sighting probability estimates allowed the total number of whales passing through the survey area during a watch period to be estimated from the observed number of whales, even in years when replicate surveys were not conducted.
 
 In the analysis, the start date of the southward migration for the Granite Canyon study site is set to 1 December, and the end date to 28 February, with the number of whales passing the watch station on those two dates assumed to be zero. The daily count data are assumed to be random deviates from binomial distributions with the estimated sighting probability and the true but unknown number of whales in the sampling area, which is assumed to change as a function of the number of days since 1 December. The model fits two possible functions to the daily whale counts and selects the one that best fits each count.  These functions are (i) a normal distribution with the peak in the daily number of whales passing occurring at the midpoint of the migration and (ii) a spline fit that allows the change in the daily number of whales to flexibly match the observed daily counts without expectations about the shape of the curve. The model then internally selects the candidate function that best matches the daily number of observed whales. The final abundance estimate is the sum of the estimated number of whales passing the survey area each day, with a correction factor applied to account for those that migrate through the study area at night (Perryman et al. 1999). The modeling approach is described in detail in Durban et al. (2015; 2017).
 
 Because the N-mixture modeling approach uses all data since the 2006/2007 season to estimate parameters  shared across yearly datasets, estimated abundances change as more data are added to the analysis. Before the 2024 report (Eguchi et al. 2024), only the new estimate was provided, while estimates for previous years were retained as they had been in the reports. In the 2024 report, we provided both old and new estimates. In this report, we provide only updated estimates for all years since the 2006/2007 season. For old estimates, please see Eguchi et al. (2024). 
+
+Analysis was conducted using the same WinBUGS (Lunn et al. 2000) code used since the 2006/2007 season (Durban et al. 2017). WinBUGS was run using the R2WinBUGS package (Sturtz et al. 2005) in R (v4.5.2, R Core Team 2026). 
 
 ## Results and Discussion {.unnumbered}
 
@@ -281,6 +283,8 @@ p.Nhat.new <- ggplot(data = all.years.new.df) +
 if (save.fig)
   ggsave(filename = paste0("Figures/nhats_", YEAR, ".png"), 
          plot = p.Nhat.new,
+         width = 7,
+         units = "in",
          device = "png", dpi = 600)
 
 
@@ -417,6 +421,8 @@ p.daily <-
 if (save.fig)
   ggsave(filename = paste0("Figures/daily_estimates_", YEAR, ".png"), 
          plot = p.daily,
+         width = 7,
+         units = "in",
          device = "png", dpi = 600)
 
 # Using yrs.summary to see how many hours were spent on surveys as total (not 
@@ -427,18 +433,45 @@ survey.hrs.new <- new.summary$Data_Out$dur * 24
 
 From `r format(as.Date(paste0(YEAR - 1, "-11-30")) + new.summary$Data_Out[1, "BeginDay"], "%d %B %Y")` to `r format(as.Date(paste0(YEAR - 1, "-11-30")) + new.summary$Data_Out[nrow(new.summary$Data_Out), "BeginDay"], "%d %B %Y")`, `r length(unique(new.summary$Data_Out$obs))` trained observers completed `r signif(sum(survey.hrs.new), 4)` hours of survey effort over `r nrow(daily.counts_Data_Out)` survey days. A total of `r sum(daily.counts_Data_Out$n.group)` groups of `r sum(daily.counts_Data_Out$n.day)` whales were counted. The highest daily count was `r max(daily.counts_Data_Out$n.day)` whales on `r daily.counts_Data_Out %>% filter(n.day == max(n.day)) %>% dplyr::select("Date") %>% as.data.frame() %>% format("%d %B %Y")` (Figure \@ref(fig:Figure-daily-fit)). Due to inclement weather and other constraints (e.g., poor visibility from fog and rain), some observation periods were \< 60 min and were excluded from analysis. Furthermore, groups that were moving north were excluded from the analysis. After removing these survey hours and groups, `r signif(sum(new.summary$Complete_Data$dur) * 24, 4)` hours of survey effort with `r sum(daily.counts$n.day)` whales in `r sum(daily.counts$n.group)` groups were retained for further analyses. The estimated total abundance of ENP gray whales during the `r paste0(YEAR-1, "/", YEAR)` southbound migration season was `r estimate.new$Nhat %>% format.big.number()` (95% Credible Interval: `r estimate.new$LCL %>% format.big.number()` - `r estimate.new$UCL %>% format.big.number()`, CV = `r signif(CV.Nhat.new, 3)`, 20-percentile = `r quantile(WinBUGS.results$BUGS.out$sims.list$Corrected.Est[,x], 0.2) %>% format.big.number()`). This estimate includes the multiplicative correction factor for nighttime passage (mean = 1.0875, SD = 0.03625, Perryman et al. 1999). This estimate represents a `r abs(signif((estimate.new$Nhat - estimate.last.year$Nhat)/estimate.last.year$Nhat, 3)) * 100`% increase from the previous estimate for the `r seasons[(length(seasons)-1)]` season (`r estimate.last.year$Nhat %>% format.big.number()`; Table \@ref(tab:Table-Nhats-v1)). After the observed decrease between the 2023/2024 and 2024/2025 seasons, this increase was an encouraging finding (Figure \@ref(fig:Figure-nhats-v1)). 
 
-The observed rates of increase in recent years are biologically implausible. A large whale population cannot increase in abundance by \>10%. Consequently, some factors other than demographic events (i.e., births and deaths) must be affecting the observed numbers of whales along the central California coast. These factors may include sampling error, analytical bias, changes in gray whale migration behavior, and sighting conditions, as well as combinations of these factors. We plan to address these possibilities by designing targeted studies in the near future. 
+Although the observed increase was welcoming, the rates of increase in recent years (e.g., 2014/2015 - 2015/2016, 2022/2023 - 2023/2024) are biologically implausible. Similar increases have been observed in the earlier years (Figure \@ref(fig:Figure-nhats-v1)). Consequently, some factors other than demographic events (i.e., births and deaths) must be affecting the observed numbers of whales along the central California coast. These factors may include sampling error, analytical bias, changes in gray whale migration behavior, and sighting conditions, as well as combinations of these factors. We plan to address these possibilities by designing targeted studies in the near future. 
 
-Using the long time series of estimated abundance of ENP gray whales from Granite Canyon, CA, a recent integrated population modeling analysis indicated that fluctuations in the gray whale abundance was likely associated with availability of benthic prey in the Arctic region ([@stewart_boom-bust_2023]). The time series suggests that observed fluctuations are common. The observed declines in abundance might represent short-term events that had not resulted in any detectable longer-term impacts on the population. That is, despite occasional declines in abundance since the time-series of data began in 1967, the population continues to fluctuate (Figure \@ref(fig:Figure-nhats-v1)). Given the rapid changes in the ocean environment, especially in the Arctic region where gray whales forage, continuous monitoring is essential to determine the extent of future fluctuations. NOAA/NMFS plan to closely monitor the population with regular surveys to estimate abundance, calf production, and body condition of gray whales. The results of these research efforts will continue to provide the best scientific information available on the population's status.
+Using the long time series of estimated abundance of ENP gray whales from Granite Canyon, CA, a recent integrated population modeling analysis indicated that fluctuations in the gray whale abundance was likely associated with availability of benthic prey in the Arctic region ([@stewart_boom-bust_2023]). The time series suggests that observed fluctuations are common. The observed declines in abundance might represent short-term events that had not resulted in any detectable longer-term impacts on the population. That is, despite occasional declines in estimated abundance since the time-series of data began in 1967, the population continues to fluctuate (Figure \@ref(fig:Figure-nhats-v1)). Given the rapid changes in the ocean environment, especially in the Arctic region where gray whales forage, continuous monitoring is essential to determine the extent of future fluctuations. NOAA/NMFS plan to closely monitor the population with regular surveys to estimate abundance, calf production, and body condition of gray whales. The results of these research efforts will continue to provide the best scientific information available on the population's status.
 
 ## Acknowledgements {.unnumbered}
 
-We thank our visual observer team for their diligence and meticulous data recording, sometimes in the inclement weather. Annette Henry, Lynn Evans, Tina Chen, and Robin LeRoux provided logistical support and survey planning to successfully carry out the mission. Bob Brownell graciously provided us with space in his office and local hospitality. We thank X and Robert Luckert at the Marine Pollution lab at Granite Canyon who continuously support our field effort at the study site. Their friendship and problem solving onsite are invaluable. X and Y improved this work by way of their careful reviews. Funding for this project was provided by NOAA/NMFS.
+We thank our visual observer team for their diligence and meticulous data recording, sometimes in inclement weather. Annette Henry, Lynn Evans, Tina Chen, and Robin LeRoux provided logistical support and survey planning to successfully carry out the mission. Bob Brownell graciously provided us with space in his office and local hospitality. We thank X and Robert Luckert at the Marine Pollution lab at Granite Canyon for their continuous support of our field effort at the study site. Their friendship and problem-solving onsite are invaluable. X and Y improved this work through their careful reviews. Funding for this project was provided by NOAA/NMFS.
 
 ## Literature cited {.unnumbered}
 
 ::: {#refs}
 :::
+
+Durban J, Weller D, Perryman W (2017). Gray whale abundance estimates from shore-based counts off California in 2014/15 and 2015/16. Paper SC/A17/GW/06 presented to the International Whaling Commission, Scientific Committee, Bled, Slovenia.
+
+Eguchi T, Lang AR, Weller DW (2022) Abundance and migratory phenology of eastern North Pacific gray whales 2021/2022. U.S. Department of Commerce, NOAA Technical Memorandum NMFS-SWFSC-668. https://doi.org/10.25923/x88y-8p07
+
+Eguchi T, Lang AR, Weller DW (2023) Abundance of eastern North Pacific gray whales 2022/2023. U.S. Department of Commerce, NOAA Technical Memorandum NMFS-SWFSC-680. https://doi.org/10.25923/n10e-bm23
+
+Eguchi T, Lang A, Weller D (2024) Abundance of eastern North Pacific gray whales 2023/2024. U.S. Department of Commerce, NOAA Technical Memorandum NMFS-SWFSC-695. https://doi.org/10.25923/n5qa-0y54
+
+Joyce TW, Ferguson MC, Berchok CL, Wright DL, Crance JL, Braen EK, Eguchi T, Perryman W, Weller DW (2023) The role of sea ice in the distribution, habitat use, and phenology of eastern North Pacific gray whales. Marine Ecology Progress Series 709:141-158.
+
+Laake JL, Punt AE, Hobbs R, Ferguson M, Rugh D, Breiwick J (2012) Gray Whale Southbound Migration Surveys 1967-2006: An Integrated Re-Analysis. Journal of Cetacean Research and Management 12:287–306.
+
+Lunn DJ, Thomas A, Best N, Spiegelhalter D (2000). WinBUGS -- a Bayesian modelling framework: concepts, structure, and extensibility. Statistics and Computing, 10, 325--337.
+
+Perryman WL, Donahue MA, Laake JL, Martin TE (1999) Diel variation in migration rates of eastern Pacific gray whales measured with thermal imaging sensors. Marine Mammal Science 15:426–445.
+
+Perryman WL, Joyce T, Weller DW, Durban JW (2021) Environmental factors influencing eastern North Pacific gray whale calf production 1994-2016. Marine Mammal Science 37:448-462.
+
+Reilly SBD, Rice W, Wolman AA (1983) Population assessment of the gray whale, Eschrichtius robustus, from California shore censuses, 1967-1980. Fishery Bulletin, US. 81:267-281.
+
+Stewart JD, Weller DW (2021) Abundance of eastern North Pacific gray whales 2019/2020. U.S. Department of Commerce, NOAA Technical Memorandum NMFS-SWFSC-639. https://doi.org/10.25923/bmam-pe91
+
+Stewart JD, Joyce TW, Durban JW, Calambokidis J, Fauquier D, Fearnbach H, Grebmeier JM, Lynn M, Manizza M, Perryman WL, Tinker MT, Weller DW (2023) Boom-Bust Cycles in Gray Whales Associated with Dynamic and Changing Arctic Conditions. Science 382:207–211.
+
+Sturtz S, Ligges U, Gelman A. (2005) R2WinBUGS: A package for running WinBUGS from R. Journal of Statistical Software 12:1-16. 
+
 
 \newpage
 

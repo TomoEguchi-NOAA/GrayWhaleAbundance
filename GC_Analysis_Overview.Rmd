@@ -32,7 +32,7 @@ When running Extract_Data_All_v2.Rmd, the following warning message will return 
 
 You may want to run Extract_Data_All_v2.Rmd a few times with differing "grace_min" values, e.g., 80, 60, and 5. The output files will be found in the output directory name defined in the script. The file name convention is out_YEAR_minMM_Tomo_v2.rds, where YEAR is the specified year and MM is the minimum survey duration per shift. "Tomo_v2" refers to the latest extraction algorithm version.
 
-Observer lists are updated annually. In the data2WinBUGS_input function (found in Granite_Canyon_Counts_fcns.R), the observer list from the previous survey is used to update the current year's observer list. 
+Observer lists are updated annually. In the data2WinBUGS_input function (found in GrayWhaleAbundace_fcns.R), the observer list from the previous survey is used to update the current year's observer list. 
 
 Extracted data from previous years should be copied into the same directory from the previous year's analysis. Alternatively, data can be re-extracted for all years. 
 
@@ -46,7 +46,7 @@ WinBUGS.input <- data2WinBUGS_input(data.dir = "RData/V2.1_Feb2025",
                                     years = c(2010, 2011, 2015, 2016, 2020, 2022, 2023, 2024, 2025),
                                     min.dur = 30) 
                                     
-The function (data2WinBUGS_input) is found in 'Granite_Canyon_Counts_fcns.R'. The three inputs for this function are the directory name in which outputs from Extract_Data_All_v2.Rmd are found, years over which the analysis is conducted (only goes back to 2010) and the minimum shift duration, which coincides with the 90 - "grace_min" object mentioned in the previous section. For example, if the "grace_min" was 60, the min.dur = 30. Because there were no raw data files for the 2006/2007 and 2007/2008 seasons, I use the WinBUGS input data from Durban's work for those two seasons. 
+The function (data2WinBUGS_input) is found in 'GrayWhaleAbundace_fcns.R'. The three inputs for this function are the directory name in which outputs from Extract_Data_All_v2.Rmd are found, years over which the analysis is conducted (only goes back to 2010) and the minimum shift duration, which coincides with the 90 - "grace_min" object mentioned in the previous section. For example, if the "grace_min" was 60, the min.dur = 30. Because there were no raw data files for the 2006/2007 and 2007/2008 seasons, I use the WinBUGS input data from Durban's work for those two seasons. 
 
 It may be good to start with short chains to make sure it runs. For example, 
 
